@@ -528,7 +528,7 @@ function openProd(pid){
           <span class="qty-num" id="vari-qty">1</span>
           <button class="qty-btn" onclick="varQty(1)">+</button>
         </div>
-        <button class="btn btn-gold" style="width:auto;padding:10px 20px" onclick="addVariant('${pid}')">Tambah ke keranjang</button>
+        <button class="btn btn-gold" style="width:auto;padding:10px 20px" onclick="addVariant(selProdId)">Tambah ke keranjang</button>
       </div>
     </div>`;
   } else {
@@ -540,12 +540,12 @@ function openProd(pid){
         <div style="font-size:11px;color:var(--t3)">Stok: ${p.stock}</div>
       </div>
       <div class="qty-ctrl">
-        <button class="qty-btn" onclick="singleQty(${pid},-1)">−</button>
+        <button class="qty-btn" onclick="singleQtyAdj(-1)">−</button>
         <span class="qty-num" id="single-qty">${qty}</span>
-        <button class="qty-btn" onclick="singleQty(${pid},1)">+</button>
+        <button class="qty-btn" onclick="singleQtyAdj(1)">+</button>
       </div>
     </div>
-    <button class="btn btn-gold" onclick="addSingle('${pid}')" style="margin-top:12px">${inCart?'Update':'Tambah ke keranjang'}</button>`;
+    <button class="btn btn-gold" onclick="addSingle(selProdId)" style="margin-top:12px">${inCart?'Update':'Tambah ke keranjang'}</button>`;
   }
   document.getElementById('prod-detail-content').innerHTML=html;
   document.getElementById('sh-prod').classList.add('open');
@@ -569,6 +569,15 @@ function selectVariant(i,pid){
 }
 
 let _singleQty=1;
+function singleQtyAdj(d){
+  const p=prods.find(x=>x.id===selProdId);
+  if(!p)return;
+  const el=document.getElementById('single-qty');
+  let q=parseInt(el.textContent)+d;
+  if(q<0)q=0;
+  if(q>p.stock)q=p.stock;
+  el.textContent=q;
+}
 function singleQty(pid,d){
   const p=prods.find(x=>x.id===pid);
   const el=document.getElementById('single-qty');
