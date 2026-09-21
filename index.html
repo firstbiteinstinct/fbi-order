@@ -415,18 +415,23 @@ let selProdId=null,selVariant=null;
 
 // Init
 async function init(){
-  const{data:ps}=await sb.from('products').select('*,batches(*)').eq('archived',false).order('name');
-  prods=(ps||[]).map(p=>{
-    const activeBatch=p.batches?.find(b=>b.active)||p.batches?.[0];
-    const totalStock=p.batches?.reduce((s,b)=>s+b.stock,0)||0;
+  const{data:ps}=await sb.from('products').select('*').order('name');
+  const{data:bs}=await sb.from('batches').select('*');
+  const FROZEN_CATS=['cooked food','broth','golden paste','beef & pork essence','beef & birdnest essence','cooked-food'];
+  prods=(ps||[]).filter(p=>p.min_stock!==-1).map(p=>{
+    const pBatches=(bs||[]).filter(b=>b.product_id===p.id);
+    const activeBatch=pBatches.find(b=>b.active)||pBatches[0];
+    const totalStock=pBatches.reduce((s,b)=>s+b.stock,0)||0;
+    const catLower=(p.category||'').toLowerCase();
+    const nameLower=(p.name||'').toLowerCase();
+    const isFrozen=FROZEN_CATS.some(fc=>catLower.includes(fc)||nameLower.includes(fc));
     return{
       ...p,
       stock:totalStock,
       hpp:activeBatch?.hpp||0,
       batchId:activeBatch?.id,
       batchCode:activeBatch?.code,
-      isFrozen:['cooked-food','broth','golden-paste','beef-pork-essence','beef-birdnest-essence'].includes(p.category)||
-                (p.tags&&p.tags.includes('frozen'))
+      isFrozen
     };
   });
   
