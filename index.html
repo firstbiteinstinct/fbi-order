@@ -415,7 +415,7 @@ let selProdId=null,selVariant=null;
 
 // Init
 async function init(){
-  const{data:ps}=await sb.from('products').select('*').order('name');
+  const{data:ps}=await sb.from('products').select('*').neq('min_stock',-1).order('name');
   const{data:bs}=await sb.from('batches').select('*');
   const FROZEN_CATS=['cooked food','broth','golden paste','beef & pork essence','beef & birdnest essence','cooked-food'];
   prods=(ps||[]).filter(p=>p.min_stock!==-1).map(p=>{
