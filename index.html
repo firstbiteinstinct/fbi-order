@@ -260,9 +260,10 @@ select.fi{cursor:pointer}
     <div class="fg"><label class="fl">Nama lengkap *</label><input type="text" class="fi" id="sh-name" placeholder="Nama penerima"/></div>
     <div class="fg"><label class="fl">Nomor WhatsApp *</label><input type="tel" class="fi" id="sh-phone" placeholder="08xxxxxxxxxx"/></div>
     <div class="fg"><label class="fl">Alamat lengkap *</label><textarea class="fi" id="sh-addr" rows="3" placeholder="Jalan, nomor, RT/RW..." style="resize:none"></textarea></div>
+    <div class="fg"><label class="fl">Kecamatan *</label><input type="text" class="fi" id="sh-subdistrict" placeholder="Nama kecamatan..."/></div>
     <div class="fi-row">
       <div class="fg"><label class="fl">Kota/Kabupaten *</label>
-        <input type="text" class="fi" id="sh-city-input" placeholder="Cari kota..." oninput="searchCity(this.value)" autocomplete="off"/>
+        <input type="text" class="fi" id="sh-city-input" placeholder="Cari kota..." oninput="searchCity(this.value)" autocomplete="off" onblur="if(!document.getElementById('sh-city-name').value&&this.value){document.getElementById('sh-city-name').value=this.value;loadCouriers('',this.value,document.getElementById('sh-province').value||'')};"/>
         <div id="city-dropdown" style="position:relative;z-index:20"></div>
         <input type="hidden" id="sh-city-id"/>
         <input type="hidden" id="sh-city-name"/>
@@ -888,10 +889,13 @@ async function goPayment(){
   const name=document.getElementById('sh-name').value.trim();
   const phone=document.getElementById('sh-phone').value.trim();
   const addr=document.getElementById('sh-addr').value.trim();
-  const cityName=document.getElementById('sh-city-name').value;
+  const subdistrict=document.getElementById('sh-subdistrict').value.trim();
+  // Use hidden field if set from dropdown, else use visible input
+  let cityName=document.getElementById('sh-city-name').value||document.getElementById('sh-city-input').value.trim();
+  if(!cityName)cityName=document.getElementById('sh-city-input').value.trim();
+  if(!document.getElementById('sh-city-name').value)document.getElementById('sh-city-name').value=cityName;
   if(!name||!phone||!addr||!cityName){alert('Lengkapi data pengiriman dulu');return;}
-  if(!courierData.name&&courierData.type!=='gojek'){alert('Pilih kurir dulu');return;}
-  shippingData={...shippingData,name,phone,addr,city:cityName,province:document.getElementById('sh-province').value,postal:document.getElementById('sh-postal').value,notes:document.getElementById('sh-notes').value};
+  shippingData={...shippingData,name,phone,addr,subdistrict,city:cityName,province:document.getElementById('sh-province').value,postal:document.getElementById('sh-postal').value,notes:document.getElementById('sh-notes').value};
   
   // Pre-fill payment form
   document.getElementById('pay-name').value=currentUser?.name||name;
@@ -1010,7 +1014,7 @@ async function submitOrder(){
       is_guest:!currentUser,
       shipping_name:shippingData.name,
       shipping_phone:shippingData.phone,
-      shipping_address:shippingData.addr,
+      shipping_address:shippingData.addr+(shippingData.subdistrict?', Kec. '+shippingData.subdistrict:''),
       shipping_city:shippingData.city,
       shipping_city_id:document.getElementById('sh-city-id').value,
       shipping_province:shippingData.province,
