@@ -396,9 +396,10 @@ select.fi{cursor:pointer}
 <script>
 const SB_URL='https://bfruyoavevpshgkyungv.supabase.co';
 const SB_KEY='sb_publishable_90qUtrkxl0HOeFRCsuybXg_B2OZxHR2';
-const FONNTE_KEY='q6zfakoPwsTqmQJ6CA5s';
-const RO_KEY='HzZoyA65c0f1b545b4c8b458oa5DEUUB';
-const CLAUDE_KEY='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';
+// RajaOngkir v2 destination id for the store's origin — city-level "BANDUNG, BANDUNG,
+// JAWA BARAT" (id 4816). Swap for a more precise kecamatan-level id if you want tighter
+// shipping estimates — search via the rajaongkir-search proxy service to find it.
+const RO_ORIGIN_ID='4816';
 const BCA_NO='5170572469';
 const BCA_NAME='Rumsari/Gabby';
 const {createClient}=supabase;
@@ -629,6 +630,8 @@ function quickAdd(pid){
 }
 
 function removeFromCart(pid){
+  const p=prods.find(x=>x.id===pid);
+  if(p&&p.variants&&p.variants.length){openProd(pid);return;}
   const ex=cart.find(c=>c.productId===pid);
   if(ex){ex.qty--;if(ex.qty<=0)cart=cart.filter(c=>!(c.productId===pid&&!c.variant));}
   renderProds();
@@ -752,21 +755,21 @@ async function searchCity(q){
   if(q.length<2){document.getElementById('city-dropdown').innerHTML='';return;}
   cityTimer=setTimeout(async()=>{
     try{
-      const res=await fetch(`https://api.rajaongkir.com/starter/city?key=${RO_KEY}`);
-      const data=await res.json();
-      const cities=(data.rajaongkir?.results||[]).filter(c=>
-        c.city_name.toLowerCase().includes(q.toLowerCase())||
-        c.type.toLowerCase().includes(q.toLowerCase())
-      ).slice(0,8);
+      const{data,error}=await sb.functions.invoke('proxy',{body:{service:'rajaongkir-search',search:q,limit:8}});
+      if(error)throw error;
+      const cities=(data?.data||[]).slice(0,8);
       document.getElementById('city-dropdown').innerHTML=cities.length?
         `<div style="background:var(--bg2);border:.5px solid var(--b2);border-radius:var(--r);margin-top:4px;overflow:hidden">
-          ${cities.map(c=>`<div onclick="selectCity('${c.city_id}','${c.type} ${c.city_name}','${c.province}')" 
+          ${cities.map(c=>`<div onclick="selectCity('${c.id}','${(c.label||c.city_name||'').replace(/'/g,"\\'")}','${(c.province_name||c.province||'').replace(/'/g,"\\'")}')"
             style="padding:10px 12px;cursor:pointer;border-bottom:.5px solid var(--b);font-size:13px">
-            <b>${c.type} ${c.city_name}</b><span style="color:var(--t3);font-size:11px"> — ${c.province}</span>
+            <b>${c.label||c.city_name}</b>
           </div>`).join('')}
         </div>`:
         '<div style="padding:10px;font-size:12px;color:var(--t3)">Kota tidak ditemukan</div>';
-    }catch(e){console.error(e);}
+    }catch(e){
+      console.error(e);
+      document.getElementById('city-dropdown').innerHTML='<div style="padding:10px;font-size:12px;color:var(--t3)">Gagal mencari kota. Kamu bisa ketik nama kota manual lalu klik di luar kolom.</div>';
+    }
   },400);
 }
 
@@ -825,24 +828,24 @@ async function loadCouriers(cityId,cityName,province){
     </div>`
   ).join('');
   
-  // Fetch ongkir from RajaOngkir
+  // Fetch ongkir from RajaOngkir (via proxy)
   const courierMap={Anteraja:'anteraja',JNE:'jne',Paxel:'paxel'};
-  for(let i=0;i<couriers.length;i++){
-    const c=couriers[i];
-    try{
-      const res=await fetch('https://api.rajaongkir.com/starter/cost',{
-        method:'POST',
-        headers:{'Content-Type':'application/x-www-form-urlencoded','key':RO_KEY},
-        body:`origin=23&destination=${cityId}&weight=${Math.max(totalWeight,1)}&courier=${courierMap[c.name]||c.name.toLowerCase()}`
-      });
-      const data=await res.json();
-      const services=data.rajaongkir?.results?.[0]?.costs||[];
-      const svc=services.find(s=>s.service===c.service)||services[0];
-      const cost=svc?.cost?.[0]?.value||0;
-      couriers[i].cost=cost;
-      document.getElementById(`co-price-${i}`).textContent=cost?fR(cost):'Tidak tersedia';
-    }catch(e){
-      document.getElementById(`co-price-${i}`).textContent='Gagal memuat';
+  if(!RO_ORIGIN_ID||!cityId){
+    couriers.forEach((c,i)=>{document.getElementById(`co-price-${i}`).textContent='Ongkir belum tersedia, hubungi admin';});
+  }else{
+    for(let i=0;i<couriers.length;i++){
+      const c=couriers[i];
+      try{
+        const{data,error}=await sb.functions.invoke('proxy',{body:{service:'rajaongkir-cost',origin:RO_ORIGIN_ID,destination:cityId,weight:Math.max(totalWeight,1),courier:courierMap[c.name]||c.name.toLowerCase()}});
+        if(error)throw error;
+        const services=data?.data||[];
+        const svc=services.find(s=>s.service===c.service)||services[0];
+        const cost=svc?.cost||0;
+        couriers[i].cost=cost;
+        document.getElementById(`co-price-${i}`).textContent=cost?fR(cost):'Tidak tersedia';
+      }catch(e){
+        document.getElementById(`co-price-${i}`).textContent='Gagal memuat';
+      }
     }
   }
   // Auto-select first
@@ -946,27 +949,9 @@ async function verifyBT(b64){
   res.textContent='🤖 AI sedang membaca bukti transfer...';
   try{
     const total=shippingData.total;
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':CLAUDE_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-6',max_tokens:300,
-        messages:[{role:'user',content:[
-          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
-          {type:'text',text:`Ini bukti transfer bank. Periksa:
-1. Apakah ini benar bukti transfer bank yang valid?
-2. Berapa nominal yang ditransfer?
-3. Apakah nominal sesuai dengan total pembayaran Rp${total.toLocaleString('id-ID')}?
-Jawab singkat dalam format:
-VALID: [ya/tidak]
-NOMINAL: [jumlah]
-SESUAI: [ya/tidak/lebih/kurang]
-CATATAN: [keterangan singkat]`}
-        ]}]
-      })
-    });
-    const data=await resp.json();
-    const txt=data.content?.[0]?.text||'';
+    const{data,error}=await sb.functions.invoke('proxy',{body:{service:'verify-transfer',image_base64:b64,total}});
+    if(error)throw error;
+    const txt=data?.text||'';
     const isValid=txt.toLowerCase().includes('valid: ya');
     const isMatch=txt.toLowerCase().includes('sesuai: ya');
     aiVerified=isValid&&isMatch;
@@ -1064,11 +1049,7 @@ async function submitOrder(){
     // Send WA notification to customer
     const msg=`Halo *${ordererName}*! 🐾\n\nPesananmu di *First Bite Instinct* sudah kami terima!\n\n📦 *${orderNo}*\n${cart.map(c=>`• ${c.productName}${c.variant?' ('+c.variant+')':''} ×${c.qty}`).join('\n')}\n\n💰 *Total: ${fR(shippingData.total)}*\n🚚 Kurir: ${courierData.name} ${courierData.service||''}\n\n${aiVerified?'✅ Bukti transfer terverifikasi otomatis.':'⏳ Tim kami sedang memverifikasi pembayaranmu.'}\n\nKami akan kirim notifikasi saat pesanan dipacking ya! 🎉\n\n_First Bite Instinct — Natural & Nutrition Balance_`;
     
-    await fetch('https://api.fonnte.com/send',{
-      method:'POST',
-      headers:{'Authorization':FONNTE_KEY},
-      body:new URLSearchParams({target:ordererPhone.replace(/^0/,'62'),message:msg})
-    }).catch(()=>{});
+    await sb.functions.invoke('proxy',{body:{service:'fonnte-send',target:ordererPhone.replace(/^0/,'62'),message:msg}}).catch(()=>{});
     
     // Show success
     document.getElementById('suc-no').textContent=orderNo;
@@ -1121,14 +1102,11 @@ async function sendOTP(){
   // Upsert customer account
   await sb.from('customer_accounts').upsert({phone,otp_code:otp,otp_expires_at:expires},{onConflict:'phone'});
   
-  // Send OTP via Fonnte
+  // Send OTP via Fonnte (proxied — key never touches the browser)
   const msg=`*${otp}* adalah kode OTP kamu untuk login di First Bite Instinct. Berlaku 10 menit. Jangan bagikan ke siapapun.`;
-  await fetch('https://api.fonnte.com/send',{
-    method:'POST',
-    headers:{'Authorization':FONNTE_KEY},
-    body:new URLSearchParams({target:phone.replace(/^0/,'62'),message:msg})
-  });
-  
+  const{error:otpErr}=await sb.functions.invoke('proxy',{body:{service:'fonnte-send',target:phone.replace(/^0/,'62'),message:msg}});
+  if(otpErr){alert('Gagal mengirim OTP, coba lagi: '+otpErr.message);return;}
+
   document.getElementById('login-phone-show').textContent=phone;
   document.getElementById('login-ph1').style.display='none';
   document.getElementById('login-ph2').style.display='';
