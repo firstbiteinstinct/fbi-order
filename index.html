@@ -421,14 +421,11 @@ let selProdId=null,selVariant=null;
 async function init(){
   const{data:ps}=await sb.from('products').select('*').neq('min_stock',-1).order('name');
   const{data:bs}=await sb.from('batches').select('*');
-  const FROZEN_CATS=['cooked food','broth','golden paste','beef & pork essence','beef & birdnest essence','cooked-food'];
   prods=(ps||[]).filter(p=>p.min_stock!==-1).map(p=>{
     const pBatches=(bs||[]).filter(b=>b.product_id===p.id);
     const activeBatch=pBatches.find(b=>b.active)||pBatches[0];
     const totalStock=pBatches.reduce((s,b)=>s+b.stock,0)||0;
-    const catLower=(p.category||'').toLowerCase();
-    const nameLower=(p.name||'').toLowerCase();
-    const isFrozen=FROZEN_CATS.some(fc=>catLower.includes(fc)||nameLower.includes(fc));
+    const isFrozen=!!p.is_frozen;
     return{
       ...p,
       stock:totalStock,
