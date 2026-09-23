@@ -260,12 +260,15 @@ select.fi{cursor:pointer}
     <div class="fg"><label class="fl">Nama lengkap *</label><input type="text" class="fi" id="sh-name" placeholder="Nama penerima"/></div>
     <div class="fg"><label class="fl">Nomor WhatsApp *</label><input type="tel" class="fi" id="sh-phone" placeholder="08xxxxxxxxxx"/></div>
     <div class="fg"><label class="fl">Alamat lengkap *</label><textarea class="fi" id="sh-addr" rows="3" placeholder="Jalan, nomor, RT/RW..." style="resize:none"></textarea></div>
-    <div class="fg"><label class="fl">Kecamatan *</label><input type="text" class="fi" id="sh-subdistrict" placeholder="Nama kecamatan..."/></div>
+    <div class="fg">
+      <label class="fl">Kecamatan *</label>
+      <input type="text" class="fi" id="sh-subdistrict" placeholder="Cari kecamatan..." oninput="searchCity(this.value)" autocomplete="off"/>
+      <div id="city-dropdown" style="position:relative;z-index:20"></div>
+      <input type="hidden" id="sh-city-id"/>
+    </div>
     <div class="fi-row">
       <div class="fg"><label class="fl">Kota/Kabupaten *</label>
-        <input type="text" class="fi" id="sh-city-input" placeholder="Cari kota..." oninput="searchCity(this.value)" autocomplete="off" onblur="if(!document.getElementById('sh-city-name').value&&this.value){document.getElementById('sh-city-name').value=this.value;loadCouriers('',this.value,document.getElementById('sh-province').value||'')};"/>
-        <div id="city-dropdown" style="position:relative;z-index:20"></div>
-        <input type="hidden" id="sh-city-id"/>
+        <input type="text" class="fi" id="sh-city-input" placeholder="Otomatis dari kecamatan" oninput="document.getElementById('sh-city-name').value=this.value" onblur="if(this.value){loadCouriers(document.getElementById('sh-city-id').value,this.value,document.getElementById('sh-province').value||'')};"/>
         <input type="hidden" id="sh-city-name"/>
         <input type="hidden" id="sh-province"/>
       </div>
@@ -412,7 +415,7 @@ const td=()=>new Date().toISOString().split('T')[0];
 let prods=[],cats=[],cart=[],currentUser=null,step=1;
 let shippingData={},courierData={},promoData=null,autoPromos=[];
 let btFile=null,btBase64=null,aiVerified=false;
-let selCat='all',cityList=[],cityTimer=null;
+let selCat='all',cityList=[],cityTimer=null,curCouriers=[];
 let selProdId=null,selVariant=null;
 
 // Init
@@ -759,15 +762,15 @@ async function searchCity(q){
     try{
       const{data,error}=await sb.functions.invoke('proxy',{body:{service:'rajaongkir-search',search:q,limit:8}});
       if(error)throw error;
-      const cities=(data?.data||[]).slice(0,8);
-      document.getElementById('city-dropdown').innerHTML=cities.length?
+      cityList=(data?.data||[]).slice(0,8);
+      document.getElementById('city-dropdown').innerHTML=cityList.length?
         `<div style="background:var(--bg2);border:.5px solid var(--b2);border-radius:var(--r);margin-top:4px;overflow:hidden">
-          ${cities.map(c=>`<div onclick="selectCity('${c.id}','${(c.label||c.city_name||'').replace(/'/g,"\\'")}','${(c.province_name||c.province||'').replace(/'/g,"\\'")}')"
+          ${cityList.map((c,i)=>`<div onclick="selectCity(${i})"
             style="padding:10px 12px;cursor:pointer;border-bottom:.5px solid var(--b);font-size:13px">
             <b>${c.label||c.city_name}</b>
           </div>`).join('')}
         </div>`:
-        '<div style="padding:10px;font-size:12px;color:var(--t3)">Kota tidak ditemukan</div>';
+        '<div style="padding:10px;font-size:12px;color:var(--t3)">Kecamatan tidak ditemukan</div>';
     }catch(e){
       console.error(e);
       document.getElementById('city-dropdown').innerHTML='<div style="padding:10px;font-size:12px;color:var(--t3)">Gagal mencari kota. Kamu bisa ketik nama kota manual lalu klik di luar kolom.</div>';
@@ -775,13 +778,19 @@ async function searchCity(q){
   },400);
 }
 
-async function selectCity(id,name,province){
-  document.getElementById('sh-city-input').value=name;
-  document.getElementById('sh-city-id').value=id;
-  document.getElementById('sh-city-name').value=name;
-  document.getElementById('sh-province').value=province;
+async function selectCity(i){
+  const c=cityList[i];
+  if(!c)return;
+  const cityName=c.city_name||c.label;
+  const kec=[c.subdistrict_name&&c.subdistrict_name!=='-'?c.subdistrict_name:null,c.district_name].filter(Boolean).join(', ')||c.label;
+  document.getElementById('sh-subdistrict').value=kec;
+  document.getElementById('sh-city-input').value=cityName;
+  document.getElementById('sh-city-id').value=c.id;
+  document.getElementById('sh-city-name').value=cityName;
+  document.getElementById('sh-province').value=c.province_name||'';
+  if(c.zip_code)document.getElementById('sh-postal').value=c.zip_code;
   document.getElementById('city-dropdown').innerHTML='';
-  await loadCouriers(id,name,province);
+  await loadCouriers(c.id,cityName,c.province_name||'');
 }
 
 async function loadCouriers(cityId,cityName,province){
@@ -815,28 +824,42 @@ async function loadCouriers(cityId,cityName,province){
     // Paxel
     const service=totalWeight>=5000?'PAXEL BIG':'PAXEL NEXT DAY';
     couriers=[{name:'Paxel',service,cost:0,loading:true,isFrozen:true}];
+  } else if(isBandung){
+    // Bandung dry orders: Gojek/GrabSend offered alongside Anteraja/JNE
+    couriers=[
+      {name:'Gojek',service:'Same day',cost:10000,isGojek:true},
+      {name:'Anteraja',service:'REG',cost:0,loading:true},
+      {name:'JNE',service:'REG',cost:0,loading:true}
+    ];
   } else {
     couriers=[
       {name:'Anteraja',service:'REG',cost:0,loading:true},
       {name:'JNE',service:'REG',cost:0,loading:true}
     ];
   }
-  
-  document.getElementById('courier-opts').innerHTML=couriers.map((c,i)=>
+  curCouriers=couriers;
+
+  document.getElementById('courier-opts').innerHTML=couriers.map((c,i)=>c.isGojek?
+    `<div class="courier-opt" id="co-${i}" onclick="selectCourier(${i})">
+      <h4>${c.name} — ${c.service}</h4>
+      <p>Same-day, ongkir diinput manual (min Rp10.000)</p>
+      <div class="price" id="co-price-${i}" onclick="event.stopPropagation()">Rp <input type="number" value="${c.cost}" min="10000" style="width:80px;background:var(--bg3);border:.5px solid var(--b2);border-radius:4px;padding:2px 6px;color:var(--gold);font:inherit" oninput="updateInlineGojekCost(${i},this.value)"/></div>
+    </div>`:
     `<div class="courier-opt" id="co-${i}" onclick="selectCourier(${i})">
       <h4>${c.name} — ${c.service}</h4>
       <p>${c.isFrozen?'Pengiriman khusus frozen':'Estimasi 2-3 hari kerja'}</p>
       <div class="price" id="co-price-${i}">Menghitung...</div>
     </div>`
   ).join('');
-  
-  // Fetch ongkir from RajaOngkir (via proxy)
+
+  // Fetch ongkir from RajaOngkir (via proxy) — skip Gojek, which is manual
   const courierMap={Anteraja:'anteraja',JNE:'jne',Paxel:'paxel'};
   if(!RO_ORIGIN_ID||!cityId){
-    couriers.forEach((c,i)=>{document.getElementById(`co-price-${i}`).textContent='Ongkir belum tersedia, hubungi admin';});
+    couriers.forEach((c,i)=>{if(!c.isGojek)document.getElementById(`co-price-${i}`).textContent='Ongkir belum tersedia, hubungi admin';});
   }else{
     for(let i=0;i<couriers.length;i++){
       const c=couriers[i];
+      if(c.isGojek)continue;
       try{
         const{data,error}=await sb.functions.invoke('proxy',{body:{service:'rajaongkir-cost',origin:RO_ORIGIN_ID,destination:cityId,weight:Math.max(totalWeight,1),courier:courierMap[c.name]||c.name.toLowerCase()}});
         if(error)throw error;
@@ -851,17 +874,25 @@ async function loadCouriers(cityId,cityName,province){
     }
   }
   // Auto-select first
-  selectCourier(0,couriers);
+  selectCourier(0);
 }
 
-function selectCourier(i,couriers){
+function selectCourier(i){
   const opts=document.querySelectorAll('.courier-opt');
   opts.forEach((el,idx)=>el.classList.toggle('active',idx===i));
-  const priceEl=document.getElementById(`co-price-${i}`);
-  const cost=parseInt(priceEl?.textContent?.replace(/[^0-9]/g,'')||0);
-  const nameEl=document.getElementById(`co-${i}`).querySelector('h4');
-  const [cName,cSvc]=nameEl.textContent.split(' — ');
-  courierData={type:cName.toLowerCase(),name:cName,service:cSvc,cost};
+  const c=curCouriers[i];
+  if(!c)return;
+  const cost=c.isGojek?Math.max(10000,parseInt(document.getElementById(`co-price-${i}`)?.querySelector('input')?.value)||10000):
+    parseInt(document.getElementById(`co-price-${i}`)?.textContent?.replace(/[^0-9]/g,'')||0);
+  courierData={type:c.name.toLowerCase(),name:c.name,service:c.service,cost,isGojek:!!c.isGojek};
+  renderShippingSummary();
+}
+
+function updateInlineGojekCost(i,val){
+  let cost=parseInt(val)||0;
+  if(cost<10000)cost=10000;
+  if(curCouriers[i])curCouriers[i].cost=cost;
+  if(courierData.isGojek&&courierData.name==='Gojek')courierData.cost=cost;
   renderShippingSummary();
 }
 
