@@ -348,7 +348,6 @@ select.fi{cursor:pointer}
     <div class="success-no" id="suc-no"></div>
     <div class="success-title">Pesanan diterima!</div>
     <div class="success-msg" id="suc-msg"></div>
-    <button class="btn btn-gold" onclick="waConfirm()" style="margin-bottom:8px">📱 Konfirmasi via WhatsApp</button>
     <button class="btn btn-outline" onclick="location.reload()">Pesan lagi</button>
   </div>
 </div>
@@ -1083,14 +1082,16 @@ async function submitOrder(){
     const msg=`Halo *${ordererName}*! 🐾\n\nPesananmu di *First Bite Instinct* sudah kami terima!\n\n📦 *${orderNo}*\n${cart.map(c=>`• ${c.productName}${c.variant?' ('+c.variant+')':''} ×${c.qty}`).join('\n')}\n\n💰 *Total: ${fR(shippingData.total)}*\n🚚 Kurir: ${courierData.name} ${courierData.service||''}\n\n${aiVerified?'✅ Bukti transfer terverifikasi otomatis.':'⏳ Tim kami sedang memverifikasi pembayaranmu.'}\n\nKami akan kirim notifikasi saat pesanan dipacking ya! 🎉\n\n_First Bite Instinct — Natural & Nutrition Balance_`;
     
     await sb.functions.invoke('proxy',{body:{service:'fonnte-send',target:ordererPhone.replace(/^0/,'62'),message:msg}}).catch(()=>{});
-    
+
+    if(aiVerified){
+      const verifiedMsg=`✅ Pembayaranmu untuk pesanan *${orderNo}* sudah kami terima dan sesuai!\n\nPesananmu akan segera diproses. Kami akan kirim notifikasi lagi saat pesanan dipacking ya! 📦\n\n_First Bite Instinct — Natural & Nutrition Balance_`;
+      await sb.functions.invoke('proxy',{body:{service:'fonnte-send',target:ordererPhone.replace(/^0/,'62'),message:verifiedMsg}}).catch(()=>{});
+    }
+
     // Show success
     document.getElementById('suc-no').textContent=orderNo;
     document.getElementById('suc-msg').textContent=`Terima kasih ${ordererName}! Pesananmu sedang kami proses. ${aiVerified?'Pembayaran sudah terverifikasi.':'Tim kami akan verifikasi pembayaranmu.'} Kamu akan dapat notifikasi WhatsApp saat pesanan dipacking.`;
-    
-    // Store for WA confirm
-    window._lastOrder={no:orderNo,name:ordererName,phone:ordererPhone};
-    
+
     cart=[];
     goStep(5);
   }catch(e){
@@ -1099,13 +1100,6 @@ async function submitOrder(){
   }finally{
     btn.disabled=false;btn.textContent='✓ Konfirmasi Pesanan';
   }
-}
-
-function waConfirm(){
-  const o=window._lastOrder;
-  if(!o)return;
-  const msg=`Halo FBI! Saya ${o.name} sudah mengirim pembayaran untuk order ${o.no}. Mohon dikonfirmasi ya 🙏`;
-  window.open(`https://wa.me/6285117838911?text=${encodeURIComponent(msg)}`,'_blank');
 }
 
 function copyRek(){
