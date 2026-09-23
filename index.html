@@ -1057,7 +1057,7 @@ async function submitOrder(){
     if(oe)throw oe;
     
     // Insert order items
-    await sb.from('order_items').insert(cart.map(c=>({
+    const{error:oie}=await sb.from('order_items').insert(cart.map(c=>({
       order_id:order.id,
       product_id:c.productId,
       product_name:c.productName,
@@ -1069,6 +1069,7 @@ async function submitOrder(){
       price:c.price,
       subtotal:c.price*c.qty
     })));
+    if(oie)throw oie;
     
     // Update stock
     for(const c of cart){
