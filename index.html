@@ -1075,7 +1075,17 @@ async function submitOrder(){
         await sb.from('batches').update({stock:Math.max(0,p.stock-c.qty)}).eq('id',p.batchId);
       }
     }
-    
+
+    // Sync into fbi-pos customers table so admin sees this order's customer + history
+    try{
+      const{data:existingCust}=await sb.from('customers').select('id').eq('phone',ordererPhone).limit(1);
+      if(existingCust&&existingCust.length){
+        await sb.from('customers').update({name:ordererName,address:shippingData.addr}).eq('id',existingCust[0].id);
+      }else{
+        await sb.from('customers').insert({id:uid(),name:ordererName,phone:ordererPhone,address:shippingData.addr});
+      }
+    }catch(e){console.error('customer sync failed',e);}
+
     // Send WA notification to customer
     const msg=`Halo *${ordererName}*! 🐾\n\nPesananmu di *First Bite Instinct* sudah kami terima!\n\n📦 *${orderNo}*\n${cart.map(c=>`• ${c.productName}${c.variant?' ('+c.variant+')':''} ×${c.qty}`).join('\n')}\n\n💰 *Total: ${fR(shippingData.total)}*\n🚚 Kurir: ${courierData.name} ${courierData.service||''}\n\n${aiVerified?'✅ Bukti transfer terverifikasi otomatis.':'⏳ Tim kami sedang memverifikasi pembayaranmu.'}\n\nKami akan kirim notifikasi saat pesanan dipacking ya! 🎉\n\n_First Bite Instinct — Natural & Nutrition Balance_`;
     
