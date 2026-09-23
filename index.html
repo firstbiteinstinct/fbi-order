@@ -479,7 +479,7 @@ function renderProds(){
     const frozen=p.isFrozen;
     const emoji=frozen?'🧊':'🌿';
     return `<div class="prod-card ${oos?'out':''}" >
-      <div class="prod-img">${emoji}</div>
+      <div class="prod-img">${p.image_url?`<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='${emoji}'"/>`:emoji}</div>
       <div class="prod-info">
         <div class="prod-name">${p.name}${frozen?'<span class="frozen-badge">Frozen</span>':'<span class="dry-badge">Dry</span>'}</div>
         ${p.description?`<div class="prod-desc">${p.description}</div>`:''}
@@ -506,7 +506,9 @@ function openProd(pid){
   const p=prods.find(x=>x.id===pid);
   if(!p)return;
   const existing=cart.filter(c=>c.productId===pid);
-  let html=`<div style="font-size:17px;font-weight:600;margin-bottom:4px">${p.name}</div>`;
+  let html='';
+  if(p.image_url)html+=`<img src="${p.image_url}" style="width:100%;height:160px;object-fit:cover;border-radius:var(--r);margin-bottom:12px" onerror="this.style.display='none'"/>`;
+  html+=`<div style="font-size:17px;font-weight:600;margin-bottom:4px">${p.name}</div>`;
   if(p.isFrozen)html+=`<span class="frozen-badge" style="font-size:11px;padding:3px 8px">🧊 Frozen — perlu pengiriman dingin</span>`;
   else html+=`<span class="dry-badge" style="font-size:11px;padding:3px 8px">🌿 Dry item</span>`;
   if(p.description)html+=`<div style="font-size:13px;color:var(--t3);margin:10px 0;line-height:1.5">${p.description}</div>`;
