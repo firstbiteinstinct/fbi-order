@@ -738,15 +738,21 @@ async function goShipping(){
   goStep(3);
   const hasFrozen=cart.some(c=>c.isFrozen);
   document.getElementById('frozen-warning').style.display=hasFrozen?'':'none';
-  // Pre-fill if logged in
+  // Pre-fill if logged in and we have a saved address
   if(currentUser){
     document.getElementById('sh-name').value=currentUser.name||'';
     document.getElementById('sh-phone').value=currentUser.phone||'';
     document.getElementById('sh-addr').value=currentUser.address||'';
+    document.getElementById('sh-postal').value=currentUser.postal_code||'';
+    if(currentUser.subdistrict)document.getElementById('sh-subdistrict').value=currentUser.subdistrict;
     if(currentUser.city){
       document.getElementById('sh-city-input').value=currentUser.city;
       document.getElementById('sh-city-name').value=currentUser.city;
       document.getElementById('sh-province').value=currentUser.province||'';
+      if(currentUser.city_id){
+        document.getElementById('sh-city-id').value=currentUser.city_id;
+        await loadCouriers(currentUser.city_id,currentUser.city,currentUser.province||'');
+      }
     }
   }
 }
@@ -817,9 +823,10 @@ async function loadCouriers(cityId,cityName,province){
   
   let couriers=[];
   if(hasFrozen){
-    // Paxel
+    // Paxel — RajaOngkir doesn't support Paxel pricing at all, so this can
+    // never be auto-calculated. Admin confirms the real cost after checkout.
     const service=totalWeight>=5000?'PAXEL BIG':'PAXEL NEXT DAY';
-    couriers=[{name:'Paxel',service,cost:0,loading:true,isFrozen:true}];
+    couriers=[{name:'Paxel',service,cost:0,isPending:true,isFrozen:true}];
   } else if(isBandung){
     // Bandung dry orders: Gojek/GrabSend offered alongside Anteraja/JNE
     couriers=[
@@ -840,6 +847,11 @@ async function loadCouriers(cityId,cityName,province){
       <h4>${c.name} — ${c.service}</h4>
       <p>Same-day, ongkir diinput manual (min Rp10.000)</p>
       <div class="price" id="co-price-${i}" onclick="event.stopPropagation()">Rp <input type="number" value="${c.cost}" min="10000" style="width:80px;background:var(--bg3);border:.5px solid var(--b2);border-radius:4px;padding:2px 6px;color:var(--gold);font:inherit" oninput="updateInlineGojekCost(${i},this.value)"/></div>
+    </div>`:c.isPending?
+    `<div class="courier-opt active" id="co-${i}" onclick="selectCourier(${i})">
+      <h4>${c.name} — ${c.service}</h4>
+      <p>⏳ Ongkir akan kami konfirmasi via WhatsApp setelah pesanan dikonfirmasi</p>
+      <div class="price" id="co-price-${i}">Dikonfirmasi admin</div>
     </div>`:
     `<div class="courier-opt" id="co-${i}" onclick="selectCourier(${i})">
       <h4>${c.name} — ${c.service}</h4>
@@ -848,14 +860,14 @@ async function loadCouriers(cityId,cityName,province){
     </div>`
   ).join('');
 
-  // Fetch ongkir from RajaOngkir (via proxy) — skip Gojek, which is manual
-  const courierMap={Anteraja:'anteraja',JNE:'jne',Paxel:'paxel'};
+  // Fetch ongkir from RajaOngkir (via proxy) — skip Gojek and Paxel, both manual
+  const courierMap={Anteraja:'anteraja',JNE:'jne'};
   if(!RO_ORIGIN_ID||!cityId){
-    couriers.forEach((c,i)=>{if(!c.isGojek)document.getElementById(`co-price-${i}`).textContent='Ongkir belum tersedia, hubungi admin';});
+    couriers.forEach((c,i)=>{if(!c.isGojek&&!c.isPending)document.getElementById(`co-price-${i}`).textContent='Ongkir belum tersedia, hubungi admin';});
   }else{
     for(let i=0;i<couriers.length;i++){
       const c=couriers[i];
-      if(c.isGojek)continue;
+      if(c.isGojek||c.isPending)continue;
       try{
         const{data,error}=await sb.functions.invoke('proxy',{body:{service:'rajaongkir-cost',origin:RO_ORIGIN_ID,destination:cityId,weight:Math.max(totalWeight,1),courier:courierMap[c.name]||c.name.toLowerCase()}});
         if(error)throw error;
@@ -879,8 +891,8 @@ function selectCourier(i){
   const c=curCouriers[i];
   if(!c)return;
   const cost=c.isGojek?Math.max(10000,parseInt(document.getElementById(`co-price-${i}`)?.querySelector('input')?.value)||10000):
-    parseInt(document.getElementById(`co-price-${i}`)?.textContent?.replace(/[^0-9]/g,'')||0);
-  courierData={type:c.name.toLowerCase(),name:c.name,service:c.service,cost,isGojek:!!c.isGojek};
+    c.isPending?0:parseInt(document.getElementById(`co-price-${i}`)?.textContent?.replace(/[^0-9]/g,'')||0);
+  courierData={type:c.name.toLowerCase(),name:c.name,service:c.service,cost,isGojek:!!c.isGojek,isPending:!!c.isPending};
   renderShippingSummary();
 }
 
@@ -908,13 +920,14 @@ function renderShippingSummary(){
   let prodDisc=0;
   if(promoData&&['percent','nominal'].includes(promoData.discount_type))prodDisc=promoData.discountAmt;
   const total=sub+ship-shipDisc-prodDisc;
-  shippingData.total=total;shippingData.sub=sub;shippingData.ship=ship;shippingData.shipDisc=shipDisc;shippingData.prodDisc=prodDisc;
+  shippingData.total=total;shippingData.sub=sub;shippingData.ship=ship;shippingData.shipDisc=shipDisc;shippingData.prodDisc=prodDisc;shippingData.isPending=!!courierData.isPending;
   document.getElementById('shipping-summary').innerHTML=`
     <div class="sum-row"><span class="lbl">Subtotal produk</span><span class="val">${fR(sub)}</span></div>
-    <div class="sum-row"><span class="lbl">Ongkos kirim (${courierData.name||'-'})</span><span class="val">${fR(ship)}</span></div>
+    <div class="sum-row"><span class="lbl">Ongkos kirim (${courierData.name||'-'})</span><span class="val">${courierData.isPending?'Menyusul':fR(ship)}</span></div>
     ${shipDisc?`<div class="sum-row"><span class="lbl">Potongan ongkir</span><span class="val ok">-${fR(shipDisc)}</span></div>`:''}
     ${prodDisc?`<div class="sum-row"><span class="lbl">Diskon produk</span><span class="val ok">-${fR(prodDisc)}</span></div>`:''}
-    <div class="sum-row total"><span>Total</span><span class="val gold">${fR(total)}</span></div>`;
+    <div class="sum-row total"><span>Total${courierData.isPending?' (belum termasuk ongkir)':''}</span><span class="val gold">${fR(total)}</span></div>
+    ${courierData.isPending?'<div class="alert alert-info" style="margin-top:8px">⏳ Ongkir Paxel akan kami hitung manual dan infokan via WhatsApp setelah pesanan dikonfirmasi. Transfer sesuai total produk dulu ya, biaya kirim menyusul.</div>':''}`;
 }
 
 async function goPayment(){
@@ -938,7 +951,7 @@ async function goPayment(){
 }
 
 function renderPaySummary(){
-  const{sub,ship,shipDisc,prodDisc,total}=shippingData;
+  const{sub,ship,shipDisc,prodDisc,total,isPending}=shippingData;
   document.getElementById('pay-summary').innerHTML=`
     <div style="margin-bottom:10px">
       ${cart.map(c=>`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px">
@@ -947,10 +960,11 @@ function renderPaySummary(){
       </div>`).join('')}
     </div>
     <div class="sum-row"><span class="lbl">Subtotal</span><span>${fR(sub)}</span></div>
-    <div class="sum-row"><span class="lbl">Ongkir (${courierData.name}${courierData.service?' '+courierData.service:''})</span><span>${fR(ship)}</span></div>
+    <div class="sum-row"><span class="lbl">Ongkir (${courierData.name}${courierData.service?' '+courierData.service:''})</span><span>${isPending?'Menyusul':fR(ship)}</span></div>
     ${shipDisc?`<div class="sum-row"><span class="lbl">Potongan ongkir</span><span class="val ok">-${fR(shipDisc)}</span></div>`:''}
     ${prodDisc?`<div class="sum-row"><span class="lbl">Diskon</span><span class="val ok">-${fR(prodDisc)}</span></div>`:''}
-    <div class="sum-row total"><span>Total transfer</span><span class="val gold">${fR(total)}</span></div>`;
+    <div class="sum-row total"><span>Total transfer${isPending?' (belum termasuk ongkir)':''}</span><span class="val gold">${fR(total)}</span></div>
+    ${isPending?'<div class="alert alert-info" style="margin-top:8px">⏳ Transfer sesuai total di atas dulu. Ongkir Paxel akan kami infokan terpisah via WhatsApp untuk ditransfer menyusul.</div>':''}`;
 }
 
 // BUKTI TRANSFER
@@ -1048,7 +1062,8 @@ async function submitOrder(){
       order_status:'pending',
       notes:shippingData.notes||null,
       is_frozen:hasFrozen,
-      total_weight:totalWeight
+      total_weight:totalWeight,
+      shipping_cost_confirmed:!shippingData.isPending
     }).select().single();
     
     if(oe)throw oe;
@@ -1086,8 +1101,18 @@ async function submitOrder(){
       }
     }catch(e){console.error('customer sync failed',e);}
 
+    // Save address back to the logged-in account so it pre-fills next order
+    if(currentUser){
+      try{
+        const addrFields={address:shippingData.addr,city:shippingData.city,province:shippingData.province,postal_code:shippingData.postal,city_id:document.getElementById('sh-city-id').value||null,subdistrict:shippingData.subdistrict||null};
+        await sb.from('customer_accounts').update(addrFields).eq('id',currentUser.id);
+        currentUser={...currentUser,...addrFields};
+        localStorage.setItem('fbi_user',JSON.stringify(currentUser));
+      }catch(e){console.error('address save failed',e);}
+    }
+
     // Send WA notification to customer
-    const msg=`Halo *${ordererName}*! 🐾\n\nPesananmu di *First Bite Instinct* sudah kami terima!\n\n📦 *${orderNo}*\n${cart.map(c=>`• ${c.productName}${c.variant?' ('+c.variant+')':''} ×${c.qty}`).join('\n')}\n\n💰 *Total: ${fR(shippingData.total)}*\n🚚 Kurir: ${courierData.name} ${courierData.service||''}\n\n${aiVerified?'✅ Bukti transfer terverifikasi otomatis.':'⏳ Tim kami sedang memverifikasi pembayaranmu.'}\n\nKami akan kirim notifikasi saat pesanan dipacking ya! 🎉\n\n_First Bite Instinct — Natural & Nutrition Balance_`;
+    const msg=`Halo *${ordererName}*! 🐾\n\nPesananmu di *First Bite Instinct* sudah kami terima!\n\n📦 *${orderNo}*\n${cart.map(c=>`• ${c.productName}${c.variant?' ('+c.variant+')':''} ×${c.qty}`).join('\n')}\n\n💰 *Total: ${fR(shippingData.total)}${shippingData.isPending?' (belum termasuk ongkir)':''}*\n🚚 Kurir: ${courierData.name} ${courierData.service||''}\n\n${shippingData.isPending?'⏳ Ongkir Paxel untuk pesananmu perlu dihitung manual oleh tim kami. Kami akan infokan biaya kirimnya secepatnya via WhatsApp ini ya.\n\n':''}${aiVerified?'✅ Bukti transfer terverifikasi otomatis.':'⏳ Tim kami sedang memverifikasi pembayaranmu.'}\n\nKami akan kirim notifikasi saat pesanan dipacking ya! 🎉\n\n_First Bite Instinct — Natural & Nutrition Balance_`;
     
     await sb.functions.invoke('proxy',{body:{service:'fonnte-send',target:ordererPhone.replace(/^0/,'62'),message:msg}}).catch(()=>{});
 
