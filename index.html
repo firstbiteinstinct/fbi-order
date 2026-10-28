@@ -269,7 +269,7 @@ select.fi{cursor:pointer}
     <div id="shipping-summary"></div>
   </div>
 
-  <button class="btn btn-gold" id="submit-btn" onclick="submitOrder()">Kirim Pesanan →</button>
+  <button class="btn btn-gold" id="submit-btn" onclick="submitOrder()">Order</button>
   <button class="btn btn-outline" onclick="goStep(2)" style="margin-top:8px">← Kembali</button>
 </div>
 
@@ -684,7 +684,7 @@ function renderCartSummary(){
     html+=`<div class="sum-row"><span class="lbl">Promo ongkir</span><span class="val ok">dipotong saat ongkir dihitung</span></div>`;
   }
   html+=`<div class="sum-row total"><span>Total produk</span><span class="val gold">${fR(sub-disc)}</span></div>
-    <div style="font-size:12px;color:var(--t3);margin-top:8px;line-height:1.5">Ongkos kirim dihitung tim FBI setelah pesanan dikirim, lalu diinfokan lewat WhatsApp.</div>`;
+    <div style="font-size:12px;color:var(--t3);margin-top:8px;line-height:1.5">Ongkos kirim dihitung tim FBI dan diinfokan lewat WhatsApp.</div>`;
   document.getElementById('cart-summary').innerHTML=html;
 }
 
@@ -770,8 +770,7 @@ function renderOrderSummary(){
     ${t.prodDisc?`<div class="sum-row"><span class="lbl">Diskon${promoData?.code?' ('+promoData.code+')':''}</span><span class="val ok">-${fR(t.prodDisc)}</span></div>`:''}
     ${isShipPromo(promoData)?`<div class="sum-row"><span class="lbl">Promo ongkir</span><span class="val ok">dipotong saat ongkir dihitung</span></div>`:''}
     <div class="sum-row"><span class="lbl">Ongkos kirim</span><span class="val">Dihitung oleh tim FBI</span></div>
-    <div class="sum-row total"><span>Total produk</span><span class="val gold">${fR(t.total)}</span></div>
-    <div class="alert alert-info" style="margin-top:8px">Setelah pesanan dikirim, tim FBI akan menghubungimu lewat WhatsApp untuk menghitung ongkir, total pembayaran, dan cara transfer.</div>`;
+    <div class="sum-row total"><span>Total produk</span><span class="val gold">${fR(t.total)}</span></div>`;
 }
 
 async function sendWA(target,message){
@@ -893,7 +892,7 @@ async function submitOrder(){
     console.error(e);
     alert('Terjadi kesalahan: '+e.message);
   }finally{
-    btn.disabled=false;btn.textContent='Kirim Pesanan →';
+    btn.disabled=false;btn.textContent='Order';
   }
 }
 
