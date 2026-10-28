@@ -214,8 +214,7 @@ select.fi{cursor:pointer}
 <div class="steps" id="steps">
   <div class="step active" id="step1"><div class="step-num">1</div>Katalog<div class="step-line"></div></div>
   <div class="step" id="step2"><div class="step-num">2</div>Keranjang<div class="step-line"></div></div>
-  <div class="step" id="step3"><div class="step-num">3</div>Pengiriman<div class="step-line"></div></div>
-  <div class="step" id="step4"><div class="step-num">4</div>Bayar</div>
+  <div class="step" id="step3"><div class="step-num">3</div>Data pesanan</div>
 </div>
 
 <!-- SCREEN 1: CATALOG -->
@@ -245,96 +244,36 @@ select.fi{cursor:pointer}
     <div id="cart-summary"></div>
   </div>
   <div style="padding:0 0 16px">
-    <button class="btn btn-gold" onclick="goShipping()">Lanjut ke Pengiriman →</button>
+    <button class="btn btn-gold" onclick="goShipping()">Lanjut: Isi Data Pesanan →</button>
     <button class="btn btn-outline" onclick="goStep(1)" style="margin-top:8px">← Tambah produk</button>
   </div>
 </div>
 
-<!-- SCREEN 3: SHIPPING -->
+<!-- SCREEN 3: ORDER DETAILS (no shipping choice — FBI confirms ongkir via WhatsApp) -->
 <div class="screen" id="sc-shipping">
-  <div class="card" id="frozen-warning" style="display:none">
-    <div class="alert alert-info">
-      Pesananmu mengandung item <b>frozen</b>, jadi pengiriman hanya lewat kurir instan (Bandung) atau Paxel (luar Bandung).
-    </div>
-  </div>
   <div class="card">
     <div class="card-title">Data penerima</div>
     <div class="fg"><label class="fl">Nama lengkap *</label><input type="text" class="fi" id="sh-name" placeholder="Nama penerima"/></div>
     <div class="fg"><label class="fl">Nomor WhatsApp *</label><input type="tel" class="fi" id="sh-phone" placeholder="08xxxxxxxxxx"/></div>
     <div class="fg"><label class="fl">Alamat lengkap *</label><textarea class="fi" id="sh-addr" rows="3" placeholder="Jalan, nomor, RT/RW..." style="resize:none"></textarea></div>
-    <div class="fg">
-      <label class="fl">Kecamatan *</label>
-      <input type="text" class="fi" id="sh-subdistrict" placeholder="Cari kecamatan..." oninput="searchCity(this.value)" autocomplete="off"/>
-      <div id="city-dropdown" style="position:relative;z-index:20"></div>
-      <input type="hidden" id="sh-city-id"/>
-    </div>
+    <div class="fg"><label class="fl">Kecamatan</label><input type="text" class="fi" id="sh-subdistrict" placeholder="Kecamatan"/></div>
     <div class="fi-row">
-      <div class="fg"><label class="fl">Kota/Kabupaten *</label>
-        <input type="text" class="fi" id="sh-city-input" placeholder="Otomatis dari kecamatan" oninput="document.getElementById('sh-city-name').value=this.value" onblur="if(this.value){loadCouriers(document.getElementById('sh-city-id').value,this.value,document.getElementById('sh-province').value||'')};"/>
-        <input type="hidden" id="sh-city-name"/>
-        <input type="hidden" id="sh-province"/>
-      </div>
+      <div class="fg"><label class="fl">Kota/Kabupaten *</label><input type="text" class="fi" id="sh-city-input" placeholder="Bandung" oninput="renderOrderSummary()"/></div>
       <div class="fg"><label class="fl">Kode pos</label><input type="text" class="fi" id="sh-postal" placeholder="40xxx"/></div>
     </div>
-    <div class="fg" style="margin-bottom:0"><label class="fl">Catatan (opsional)</label><input type="text" class="fi" id="sh-notes" placeholder="Catatan untuk kurir..."/></div>
-  </div>
-
-  <div class="card" id="courier-card" style="display:none">
-    <div class="card-title">Pilih kurir & layanan</div>
-    <div id="courier-opts"></div>
+    <div class="fg" style="margin-bottom:0"><label class="fl">Catatan (opsional)</label><input type="text" class="fi" id="sh-notes" placeholder="Patokan alamat, catatan untuk kurir..."/></div>
   </div>
 
   <div class="card">
+    <div class="card-title">Ringkasan pesanan</div>
     <div id="shipping-summary"></div>
   </div>
 
-  <button class="btn btn-gold" onclick="goPayment()">Lanjut ke Pembayaran →</button>
+  <button class="btn btn-gold" id="submit-btn" onclick="submitOrder()">Kirim Pesanan →</button>
   <button class="btn btn-outline" onclick="goStep(2)" style="margin-top:8px">← Kembali</button>
 </div>
 
-<!-- SCREEN 4: PAYMENT -->
-<div class="screen" id="sc-payment">
-  <div class="card">
-    <div class="card-title">Ringkasan pesanan</div>
-    <div id="pay-summary"></div>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Transfer ke rekening</div>
-    <div style="text-align:center;padding:16px 0">
-      <div style="font-size:13px;color:var(--t3);margin-bottom:4px">Bank BCA</div>
-      <div style="font-size:24px;font-weight:700;letter-spacing:2px;color:var(--gold);margin-bottom:4px">5170572469</div>
-      <div style="font-size:13px;color:var(--t2)">a.n. <b>Rumsari/Gabby</b></div>
-      <button onclick="copyRek()" style="margin-top:12px;padding:6px 16px;background:var(--bg3);border:.5px solid var(--b2);border-radius:20px;color:var(--t2);cursor:pointer;font-size:12px">📋 Salin nomor rekening</button>
-    </div>
-    <div style="background:var(--bg3);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--t3);line-height:1.6">
-      Transfer sesuai nominal total. Pastikan nama pengirim sesuai dengan nama pemesan.
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Upload bukti transfer</div>
-    <div class="upload-area" id="upload-area" onclick="document.getElementById('bt-file').click()">
-      <div class="upload-icon">📸</div>
-      <div class="upload-txt">Klik untuk upload foto bukti transfer</div>
-      <div style="font-size:11px;color:var(--t3);margin-top:4px">JPG, PNG — max 5MB</div>
-      <img id="bt-preview" class="upload-preview"/>
-    </div>
-    <input type="file" id="bt-file" accept="image/*" style="display:none" onchange="onBTUpload(this)"/>
-    <div class="ai-result" id="ai-result"></div>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Data pemesanan</div>
-    <div class="fg"><label class="fl">Nama pemesan *</label><input type="text" class="fi" id="pay-name" placeholder="Nama kamu"/></div>
-    <div class="fg" style="margin-bottom:0"><label class="fl">Nomor WhatsApp *</label><input type="tel" class="fi" id="pay-phone" placeholder="08xxxxxxxxxx"/></div>
-  </div>
-
-  <button class="btn btn-gold" id="submit-btn" onclick="submitOrder()">✓ Konfirmasi Pesanan</button>
-  <button class="btn btn-outline" onclick="goStep(3)" style="margin-top:8px">← Kembali</button>
-</div>
-
-<!-- SCREEN 5: SUCCESS -->
+<!-- SCREEN 4: SUCCESS -->
 <div class="screen" id="sc-success">
   <div class="success-wrap">
     <div class="success-icon">✓</div>
@@ -345,37 +284,40 @@ select.fi{cursor:pointer}
   </div>
 </div>
 
-<!-- PAY REMAINING SHIPPING (deep link: ?pay=<order_no>) -->
+<!-- PAYMENT PAGE (deep link: ?pay=<order_no>, sent by FBI over WhatsApp once ongkir is confirmed) -->
 <div class="screen" id="sc-pay-ship">
   <div class="card" style="margin-top:16px">
-    <div class="card-title">Pelunasan Ongkir</div>
-    <div id="pay-ship-order-no" style="font-size:13px;font-family:monospace;color:var(--gold);margin-bottom:8px"></div>
-    <div id="pay-ship-items" style="margin-bottom:10px"></div>
-    <div class="sum-row total"><span>Ongkir yang perlu ditransfer</span><span class="val gold" id="pay-ship-amount"></span></div>
+    <div class="card-title">Pembayaran pesanan</div>
+    <div id="pay-order-no" style="font-size:13px;font-family:monospace;color:var(--gold);margin-bottom:8px"></div>
+    <div id="pay-state"></div>
+    <div id="pay-items" style="margin-bottom:10px"></div>
+    <div id="pay-breakdown"></div>
   </div>
-  <div class="card">
-    <div class="card-title">Transfer ke rekening</div>
-    <div style="text-align:center;padding:16px 0">
-      <div style="font-size:13px;color:var(--t3);margin-bottom:4px">Bank BCA</div>
-      <div style="font-size:24px;font-weight:700;letter-spacing:2px;color:var(--gold);margin-bottom:4px" id="pay-ship-bca-no"></div>
-      <div style="font-size:13px;color:var(--t2)">a.n. <b id="pay-ship-bca-name"></b></div>
-      <button onclick="copyRek()" style="margin-top:12px;padding:6px 16px;background:var(--bg3);border:.5px solid var(--b2);border-radius:20px;color:var(--t2);cursor:pointer;font-size:12px">📋 Salin nomor rekening</button>
+  <div id="pay-form">
+    <div class="card">
+      <div class="card-title">Transfer ke rekening</div>
+      <div style="text-align:center;padding:16px 0">
+        <div style="font-size:13px;color:var(--t3);margin-bottom:4px">Bank BCA</div>
+        <div style="font-size:24px;font-weight:700;letter-spacing:2px;color:var(--gold);margin-bottom:4px" id="pay-bca-no"></div>
+        <div style="font-size:13px;color:var(--t2)">a.n. <b id="pay-bca-name"></b></div>
+        <button onclick="copyRek()" style="margin-top:12px;padding:6px 16px;background:var(--bg3);border:.5px solid var(--b2);border-radius:20px;color:var(--t2);cursor:pointer;font-size:12px">Salin nomor rekening</button>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--t3);line-height:1.6">
+        Transfer sesuai nominal total di atas, lalu upload bukti transfernya di bawah.
+      </div>
     </div>
-  </div>
-  <div class="card" id="pay-ship-upload-card">
-    <div class="card-title">Upload bukti transfer ongkir</div>
-    <div class="upload-area" id="pay-ship-upload-area" onclick="document.getElementById('pay-ship-file').click()">
-      <div class="upload-icon">📸</div>
-      <div class="upload-txt">Klik untuk upload foto bukti transfer</div>
-      <img id="pay-ship-preview" class="upload-preview"/>
+    <div class="card" id="pay-upload-card">
+      <div class="card-title">Upload bukti transfer</div>
+      <div class="upload-area" id="pay-upload-area" onclick="document.getElementById('pay-file').click()">
+        <div class="upload-icon">📸</div>
+        <div class="upload-txt" id="pay-upload-txt">Klik untuk upload foto bukti transfer</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:4px">JPG, PNG — max 5MB</div>
+        <img id="pay-preview" class="upload-preview"/>
+      </div>
+      <input type="file" id="pay-file" accept="image/*" style="display:none" onchange="onPayProofUpload(this)"/>
+      <div class="ai-result" id="pay-ai-result"></div>
     </div>
-    <input type="file" id="pay-ship-file" accept="image/*" style="display:none" onchange="onShipProofUpload(this)"/>
-  </div>
-  <button class="btn btn-gold" id="pay-ship-submit-btn" onclick="submitShipProof()">✓ Kirim Bukti Transfer</button>
-  <div id="pay-ship-done" class="success-wrap" style="display:none">
-    <div class="success-icon">✓</div>
-    <div class="success-title">Terima kasih!</div>
-    <div class="success-msg">Bukti transfer ongkirmu sudah kami terima dan akan segera diverifikasi tim kami.</div>
+    <button class="btn btn-gold" id="pay-submit-btn" onclick="submitPayProof()">Kirim Bukti Transfer</button>
   </div>
 </div>
 
@@ -425,10 +367,8 @@ select.fi{cursor:pointer}
 <script>
 const SB_URL='https://bfruyoavevpshgkyungv.supabase.co';
 const SB_KEY='sb_publishable_90qUtrkxl0HOeFRCsuybXg_B2OZxHR2';
-// RajaOngkir v2 destination id for the store's origin — city-level "BANDUNG, BANDUNG,
-// JAWA BARAT" (id 4816). Swap for a more precise kecamatan-level id if you want tighter
-// shipping estimates — search via the rajaongkir-search proxy service to find it.
-const RO_ORIGIN_ID='4816';
+// WhatsApp number (62...) that gets a heads-up whenever a new order or payment proof arrives.
+const ADMIN_WA='6285117838911';
 const BCA_NO='5170572469';
 const BCA_NAME='Rumsari/Gabby';
 const {createClient}=supabase;
@@ -439,9 +379,8 @@ const td=()=>new Date().toISOString().split('T')[0];
 
 // State
 let prods=[],cats=[],cart=[],currentUser=null,step=1;
-let shippingData={},courierData={},promoData=null,autoPromos=[];
-let btFile=null,btBase64=null,aiVerified=false;
-let selCat='all',cityList=[],cityTimer=null,curCouriers=[];
+let promoData=null,autoPromos=[];
+let selCat='all';
 let selProdId=null,selVariant=null;
 
 // Init
@@ -738,10 +677,14 @@ function cartRemove(i){
 function renderCartSummary(){
   const sub=cartSubtotal();
   let html=`<div class="sum-row"><span class="lbl">Subtotal (${cart.reduce((s,c)=>s+c.qty,0)} item)</span><span class="val gold">${fR(sub)}</span></div>`;
-  if(promoData&&promoData.discount_type!=='shipping_discount'){
-    html+=`<div class="sum-row"><span class="lbl">Diskon (${promoData.code})</span><span class="val ok">-${fR(promoData.discountAmt)}</span></div>`;
+  const disc=promoData&&!isShipPromo(promoData)?Math.min(promoData.discountAmt||0,sub):0;
+  if(disc){
+    html+=`<div class="sum-row"><span class="lbl">Diskon (${promoData.code||promoData.name})</span><span class="val ok">-${fR(disc)}</span></div>`;
+  }else if(isShipPromo(promoData)){
+    html+=`<div class="sum-row"><span class="lbl">Promo ongkir</span><span class="val ok">dipotong saat ongkir dihitung</span></div>`;
   }
-  html+=`<div class="sum-row total"><span>Total produk</span><span class="val gold">${fR(sub-(promoData&&promoData.discount_type!=='shipping_discount'?promoData.discountAmt:0))}</span></div>`;
+  html+=`<div class="sum-row total"><span>Total produk</span><span class="val gold">${fR(sub-disc)}</span></div>
+    <div style="font-size:12px;color:var(--t3);margin-top:8px;line-height:1.5">Ongkos kirim dihitung tim FBI setelah pesanan dikirim, lalu diinfokan lewat WhatsApp.</div>`;
   document.getElementById('cart-summary').innerHTML=html;
 }
 
@@ -760,12 +703,12 @@ async function applyPromo(){
   let discountAmt=0;
   if(p.discount_type==='percent')discountAmt=Math.round(sub*p.discount_value/100);
   else if(p.discount_type==='nominal')discountAmt=p.discount_value;
-  else if(p.discount_type==='free_shipping')discountAmt=courierData.cost||0;
+  else if(p.discount_type==='free_shipping')discountAmt=0; // applied when FBI confirms ongkir
   else if(p.discount_type==='shipping_discount')discountAmt=p.discount_value;
   promoData={...p,discountAmt};
   const badge=document.getElementById('promo-badge');
   badge.style.display='';
-  badge.innerHTML=`✓ Promo "${p.name}" aktif — hemat ${fR(discountAmt)}`;
+  badge.innerHTML=isShipPromo(p)?`✓ Promo "${p.name}" aktif — potongan ongkir diterapkan saat ongkir dihitung`:`✓ Promo "${p.name}" aktif — hemat ${fR(discountAmt)}`;
   renderCartSummary();
 }
 
@@ -782,321 +725,117 @@ function checkAutoPromos(sub,isOutOfBandung){
   return null;
 }
 
-// SHIPPING
-async function goShipping(){
+// ORDER DETAILS
+const isShipPromo=p=>!!p&&['free_shipping','shipping_discount'].includes(p.discount_type);
+
+function goShipping(){
   if(!cart.length)return;
   goStep(3);
-  const hasFrozen=cart.some(c=>c.isFrozen);
-  document.getElementById('frozen-warning').style.display=hasFrozen?'':'none';
-  // Pre-fill if logged in and we have a saved address
   if(currentUser){
     document.getElementById('sh-name').value=currentUser.name||'';
     document.getElementById('sh-phone').value=currentUser.phone||'';
     document.getElementById('sh-addr').value=currentUser.address||'';
     document.getElementById('sh-postal').value=currentUser.postal_code||'';
-    if(currentUser.subdistrict)document.getElementById('sh-subdistrict').value=currentUser.subdistrict;
-    if(currentUser.city){
-      document.getElementById('sh-city-input').value=currentUser.city;
-      document.getElementById('sh-city-name').value=currentUser.city;
-      document.getElementById('sh-province').value=currentUser.province||'';
-      if(currentUser.city_id){
-        document.getElementById('sh-city-id').value=currentUser.city_id;
-        await loadCouriers(currentUser.city_id,currentUser.city,currentUser.province||'');
-      }
-    }
+    document.getElementById('sh-subdistrict').value=currentUser.subdistrict||'';
+    document.getElementById('sh-city-input').value=currentUser.city||'';
   }
+  renderOrderSummary();
 }
 
-async function searchCity(q){
-  clearTimeout(cityTimer);
-  if(q.length<2){document.getElementById('city-dropdown').innerHTML='';return;}
-  cityTimer=setTimeout(async()=>{
-    try{
-      const{data,error}=await sb.functions.invoke('proxy',{body:{service:'rajaongkir-search',search:q,limit:8}});
-      if(error)throw error;
-      cityList=(data?.data||[]).slice(0,8);
-      document.getElementById('city-dropdown').innerHTML=cityList.length?
-        `<div style="background:var(--bg2);border:.5px solid var(--b2);border-radius:var(--r);margin-top:4px;overflow:hidden">
-          ${cityList.map((c,i)=>`<div onclick="selectCity(${i})"
-            style="padding:10px 12px;cursor:pointer;border-bottom:.5px solid var(--b);font-size:13px">
-            <b>${c.label||c.city_name}</b>
-          </div>`).join('')}
-        </div>`:
-        '<div style="padding:10px;font-size:12px;color:var(--t3)">Kecamatan tidak ditemukan</div>';
-    }catch(e){
-      console.error(e);
-      document.getElementById('city-dropdown').innerHTML='<div style="padding:10px;font-size:12px;color:var(--t3)">Gagal mencari kota. Kamu bisa ketik nama kota manual lalu klik di luar kolom.</div>';
-    }
-  },400);
-}
-
-async function selectCity(i){
-  const c=cityList[i];
-  if(!c)return;
-  const cityName=c.city_name||c.label;
-  const kec=[c.subdistrict_name&&c.subdistrict_name!=='-'?c.subdistrict_name:null,c.district_name].filter(Boolean).join(', ')||c.label;
-  document.getElementById('sh-subdistrict').value=kec;
-  document.getElementById('sh-city-input').value=cityName;
-  document.getElementById('sh-city-id').value=c.id;
-  document.getElementById('sh-city-name').value=cityName;
-  document.getElementById('sh-province').value=c.province_name||'';
-  if(c.zip_code)document.getElementById('sh-postal').value=c.zip_code;
-  document.getElementById('city-dropdown').innerHTML='';
-  await loadCouriers(c.id,cityName,c.province_name||'');
-}
-
-async function loadCouriers(cityId,cityName,province){
-  const hasFrozen=cart.some(c=>c.isFrozen);
-  const totalWeight=cart.reduce((s,c)=>s+c.weightGram*c.qty,0)||500;
-  const isBandung=cityName.toLowerCase().includes('bandung');
-  const isOutOfBandung=!isBandung;
-  
-  // Auto promo check
-  const autoPr=checkAutoPromos(cartSubtotal(),isOutOfBandung);
-  if(autoPr&&(!promoData||promoData.type!=='code')){
-    promoData=autoPr;
-    const badge=document.getElementById('promo-badge');
-    badge.style.display='';badge.innerHTML=`✓ Promo otomatis: ${autoPr.name} — hemat ${fR(autoPr.discountAmt)}`;
-  }
-  
-  document.getElementById('courier-card').style.display='';
-
-  let couriers=[];
-  if(isBandung){
-    // Bandung or Kabupaten Bandung (RajaOngkir reports both as city "BANDUNG")
-    // — local instant couriers, all priced manually since none of these are
-    // in RajaOngkir's supported courier list. Dry orders also get the
-    // auto-priced regular couriers as a cheaper alternative.
-    couriers=[
-      {name:'Gojek',service:'Same day',cost:0,isPending:true},
-      {name:'Grab',service:'GrabExpress',cost:0,isPending:true},
-      {name:'ShopeeExpress',service:'Instant',cost:0,isPending:true},
-      {name:'Paxel',service:'Same day',cost:0,isPending:true,isFrozen:hasFrozen}
-    ];
-    if(!hasFrozen){
-      couriers.push({name:'Anteraja',service:'REG',cost:0,loading:true});
-      couriers.push({name:'JNE',service:'REG',cost:0,loading:true});
-    }
-  } else if(hasFrozen){
-    // Paxel — RajaOngkir doesn't support Paxel pricing at all, so this can
-    // never be auto-calculated. Admin confirms the real cost after checkout.
-    const service=totalWeight>=5000?'PAXEL BIG':'PAXEL NEXT DAY';
-    couriers=[{name:'Paxel',service,cost:0,isPending:true,isFrozen:true}];
-  } else {
-    couriers=[
-      {name:'Anteraja',service:'REG',cost:0,loading:true},
-      {name:'JNE',service:'REG',cost:0,loading:true}
-    ];
-  }
-  curCouriers=couriers;
-
-  document.getElementById('courier-opts').innerHTML=couriers.map((c,i)=>c.isPending?
-    `<div class="courier-opt" id="co-${i}" onclick="selectCourier(${i})">
-      <h4>${c.name} — ${c.service}</h4>
-      <p>Ongkir akan kami konfirmasi via WhatsApp setelah pesanan dikonfirmasi</p>
-      <div class="price" id="co-price-${i}">Dikonfirmasi admin</div>
-    </div>`:
-    `<div class="courier-opt" id="co-${i}" onclick="selectCourier(${i})">
-      <h4>${c.name} — ${c.service}</h4>
-      <p>${c.isFrozen?'Pengiriman khusus frozen':'Estimasi 2-3 hari kerja'}</p>
-      <div class="price" id="co-price-${i}">Menghitung...</div>
-    </div>`
-  ).join('');
-
-  // Fetch ongkir from RajaOngkir (via proxy) — skip pending (admin-confirmed) couriers
-  const courierMap={Anteraja:'anteraja',JNE:'jne'};
-  if(!RO_ORIGIN_ID||!cityId){
-    couriers.forEach((c,i)=>{if(!c.isPending)document.getElementById(`co-price-${i}`).textContent='Ongkir belum tersedia, hubungi admin';});
-  }else{
-    for(let i=0;i<couriers.length;i++){
-      const c=couriers[i];
-      if(c.isPending)continue;
-      try{
-        const{data,error}=await sb.functions.invoke('proxy',{body:{service:'rajaongkir-cost',origin:RO_ORIGIN_ID,destination:cityId,weight:Math.max(totalWeight,1),courier:courierMap[c.name]||c.name.toLowerCase()}});
-        if(error)throw error;
-        const services=data?.data||[];
-        const svc=services.find(s=>s.service===c.service)||services[0];
-        const cost=svc?.cost||0;
-        couriers[i].cost=cost;
-        document.getElementById(`co-price-${i}`).textContent=cost?fR(cost):'Tidak tersedia';
-      }catch(e){
-        document.getElementById(`co-price-${i}`).textContent='Gagal memuat';
-      }
-    }
-  }
-  // Auto-select first
-  selectCourier(0);
-}
-
-function selectCourier(i){
-  const opts=document.querySelectorAll('.courier-opt');
-  opts.forEach((el,idx)=>el.classList.toggle('active',idx===i));
-  const c=curCouriers[i];
-  if(!c)return;
-  const cost=c.isPending?0:parseInt(document.getElementById(`co-price-${i}`)?.textContent?.replace(/[^0-9]/g,'')||0);
-  courierData={type:c.name.toLowerCase(),name:c.name,service:c.service,cost,isPending:!!c.isPending};
-  renderShippingSummary();
-}
-
-
-function renderShippingSummary(){
+// Product discount only — ongkir is added later by FBI, so shipping promos are
+// recorded on the order (discount_code) and applied when ongkir is confirmed.
+function orderTotals(){
   const sub=cartSubtotal();
-  const ship=courierData.cost||0;
-  let shipDisc=0;
-  if(promoData&&promoData.discount_type==='shipping_discount')shipDisc=Math.min(promoData.discountAmt,ship);
-  if(promoData&&promoData.discount_type==='free_shipping')shipDisc=ship;
-  let prodDisc=0;
-  if(promoData&&['percent','nominal'].includes(promoData.discount_type))prodDisc=promoData.discountAmt;
-  const total=sub+ship-shipDisc-prodDisc;
-  shippingData.total=total;shippingData.sub=sub;shippingData.ship=ship;shippingData.shipDisc=shipDisc;shippingData.prodDisc=prodDisc;shippingData.isPending=!!courierData.isPending;
+  const prodDisc=promoData&&!isShipPromo(promoData)?Math.min(promoData.discountAmt||0,sub):0;
+  return{sub,prodDisc,total:sub-prodDisc};
+}
+
+function applyAutoPromo(){
+  const city=(document.getElementById('sh-city-input')?.value||'').trim().toLowerCase();
+  if(!city||(promoData&&promoData.type==='code'))return;
+  promoData=checkAutoPromos(cartSubtotal(),!city.includes('bandung'))||null;
+}
+
+function renderOrderSummary(){
+  applyAutoPromo();
+  const t=orderTotals();
   document.getElementById('shipping-summary').innerHTML=`
-    <div class="sum-row"><span class="lbl">Subtotal produk</span><span class="val">${fR(sub)}</span></div>
-    <div class="sum-row"><span class="lbl">Ongkos kirim (${courierData.name||'-'})</span><span class="val">${courierData.isPending?'Menyusul':fR(ship)}</span></div>
-    ${shipDisc?`<div class="sum-row"><span class="lbl">Potongan ongkir</span><span class="val ok">-${fR(shipDisc)}</span></div>`:''}
-    ${prodDisc?`<div class="sum-row"><span class="lbl">Diskon produk</span><span class="val ok">-${fR(prodDisc)}</span></div>`:''}
-    <div class="sum-row total"><span>Total${courierData.isPending?' (belum termasuk ongkir)':''}</span><span class="val gold">${fR(total)}</span></div>
-    ${courierData.isPending?`<div class="alert alert-info" style="margin-top:8px">Ongkir ${courierData.name} akan kami hitung manual dan infokan via WhatsApp setelah pesanan dikonfirmasi. Transfer sesuai total produk dulu ya, biaya kirim menyusul.</div>`:''}`;
-}
-
-async function goPayment(){
-  const name=document.getElementById('sh-name').value.trim();
-  const phone=document.getElementById('sh-phone').value.trim();
-  const addr=document.getElementById('sh-addr').value.trim();
-  const subdistrict=document.getElementById('sh-subdistrict').value.trim();
-  // Use hidden field if set from dropdown, else use visible input
-  let cityName=document.getElementById('sh-city-name').value||document.getElementById('sh-city-input').value.trim();
-  if(!cityName)cityName=document.getElementById('sh-city-input').value.trim();
-  if(!document.getElementById('sh-city-name').value)document.getElementById('sh-city-name').value=cityName;
-  if(!name||!phone||!addr||!cityName){alert('Lengkapi data pengiriman dulu');return;}
-  shippingData={...shippingData,name,phone,addr,subdistrict,city:cityName,province:document.getElementById('sh-province').value,postal:document.getElementById('sh-postal').value,notes:document.getElementById('sh-notes').value};
-  
-  // Pre-fill payment form
-  document.getElementById('pay-name').value=currentUser?.name||name;
-  document.getElementById('pay-phone').value=currentUser?.phone||phone;
-  
-  renderPaySummary();
-  goStep(4);
-}
-
-function renderPaySummary(){
-  const{sub,ship,shipDisc,prodDisc,total,isPending}=shippingData;
-  document.getElementById('pay-summary').innerHTML=`
     <div style="margin-bottom:10px">
       ${cart.map(c=>`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px">
         <span style="color:var(--t2)">${c.productName}${c.variant?' ('+c.variant+')':''} ×${c.qty}</span>
         <span>${fR(c.price*c.qty)}</span>
       </div>`).join('')}
     </div>
-    <div class="sum-row"><span class="lbl">Subtotal</span><span>${fR(sub)}</span></div>
-    <div class="sum-row"><span class="lbl">Ongkir (${courierData.name}${courierData.service?' '+courierData.service:''})</span><span>${isPending?'Menyusul':fR(ship)}</span></div>
-    ${shipDisc?`<div class="sum-row"><span class="lbl">Potongan ongkir</span><span class="val ok">-${fR(shipDisc)}</span></div>`:''}
-    ${prodDisc?`<div class="sum-row"><span class="lbl">Diskon</span><span class="val ok">-${fR(prodDisc)}</span></div>`:''}
-    <div class="sum-row total"><span>Total transfer${isPending?' (belum termasuk ongkir)':''}</span><span class="val gold">${fR(total)}</span></div>
-    ${isPending?`<div class="alert alert-info" style="margin-top:8px">Transfer sesuai total di atas dulu. Ongkir ${courierData.name} akan kami infokan terpisah via WhatsApp untuk ditransfer menyusul.</div>`:''}`;
+    <div class="sum-row"><span class="lbl">Subtotal produk</span><span class="val">${fR(t.sub)}</span></div>
+    ${t.prodDisc?`<div class="sum-row"><span class="lbl">Diskon${promoData?.code?' ('+promoData.code+')':''}</span><span class="val ok">-${fR(t.prodDisc)}</span></div>`:''}
+    ${isShipPromo(promoData)?`<div class="sum-row"><span class="lbl">Promo ongkir</span><span class="val ok">dipotong saat ongkir dihitung</span></div>`:''}
+    <div class="sum-row"><span class="lbl">Ongkos kirim</span><span class="val">Dihitung oleh tim FBI</span></div>
+    <div class="sum-row total"><span>Total produk</span><span class="val gold">${fR(t.total)}</span></div>
+    <div class="alert alert-info" style="margin-top:8px">Setelah pesanan dikirim, tim FBI akan menghubungimu lewat WhatsApp untuk menghitung ongkir, total pembayaran, dan cara transfer.</div>`;
 }
 
-// BUKTI TRANSFER
-function onBTUpload(input){
-  const file=input.files[0];
-  if(!file)return;
-  if(file.size>5*1024*1024){alert('File terlalu besar, max 5MB');return;}
-  btFile=file;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const b64=e.target.result;
-    btBase64=b64.split(',')[1];
-    const prev=document.getElementById('bt-preview');
-    prev.src=b64;prev.style.display='block';
-    document.getElementById('upload-area').classList.add('has-file');
-    document.querySelector('.upload-txt').textContent='Foto berhasil dipilih ✓';
-    verifyBT(btBase64);
-  };
-  reader.readAsDataURL(file);
-}
-
-async function verifyBT(b64){
-  const res=document.getElementById('ai-result');
-  res.className='ai-result ai-loading';res.style.display='';
-  res.textContent='AI sedang membaca bukti transfer...';
+async function sendWA(target,message){
   try{
-    const total=shippingData.total;
-    const{data,error}=await sb.functions.invoke('proxy',{body:{service:'verify-transfer',image_base64:b64,total}});
-    if(error)throw error;
-    const txt=data?.text||'';
-    const isValid=txt.toLowerCase().includes('valid: ya');
-    const isMatch=txt.toLowerCase().includes('sesuai: ya');
-    aiVerified=isValid&&isMatch;
-    res.className=`ai-result ${aiVerified?'ai-ok':'ai-err'}`;
-    res.innerHTML=aiVerified?
-      `✓ Bukti transfer valid! Nominal sesuai.<br><small>${txt.split('\n').find(l=>l.startsWith('CATATAN'))||''}</small>`:
-      `Perhatian: ${txt.replace(/\n/g,'<br>')}`;
-  }catch(e){
-    res.className='ai-result ai-err';
-    res.textContent='Gagal memverifikasi otomatis. Tim kami akan cek manual.';
-    aiVerified=false;
-  }
+    const{data,error}=await sb.functions.invoke('proxy',{body:{service:'fonnte-send',target,message}});
+    return !error&&data?.status!==false;
+  }catch(e){return false;}
 }
+const waNum=p=>(p||'').replace(/\D/g,'').replace(/^0/,'62');
 
 // SUBMIT ORDER
 async function submitOrder(){
-  const ordererName=document.getElementById('pay-name').value.trim();
-  const ordererPhone=document.getElementById('pay-phone').value.trim();
-  if(!ordererName||!ordererPhone){alert('Lengkapi nama dan nomor WhatsApp');return;}
-  if(!btFile){alert('Upload bukti transfer dulu');return;}
-  
+  const name=document.getElementById('sh-name').value.trim();
+  const phone=document.getElementById('sh-phone').value.trim();
+  const addr=document.getElementById('sh-addr').value.trim();
+  const subdistrict=document.getElementById('sh-subdistrict').value.trim();
+  const city=document.getElementById('sh-city-input').value.trim();
+  const postal=document.getElementById('sh-postal').value.trim();
+  const notes=document.getElementById('sh-notes').value.trim();
+  if(!name||!phone||!addr||!city){alert('Lengkapi nama, nomor WhatsApp, alamat, dan kota dulu');return;}
+  if(phone.replace(/\D/g,'').length<9){alert('Nomor WhatsApp tidak valid');return;}
+  if(!cart.length){alert('Keranjang kosong');return;}
+
   const btn=document.getElementById('submit-btn');
   btn.disabled=true;btn.textContent='Memproses...';
-  
+
   try{
-    // Upload BT to Supabase Storage
-    const fname=`bt/${uid()}_${btFile.name}`;
-    const{data:upd,error:upe}=await sb.storage.from('order-proofs').upload(fname,btFile,{contentType:btFile.type});
-    let proofUrl='';
-    if(!upe){
-      const{data:ud}=sb.storage.from('order-proofs').getPublicUrl(fname);
-      proofUrl=ud?.publicUrl||'';
-    }
-    
-    // Create order
+    applyAutoPromo();
+    const t=orderTotals();
     const orderNo='FBI-'+td().replace(/-/g,'').slice(2)+'-'+Math.floor(Math.random()*1000).toString().padStart(3,'0');
     const hasFrozen=cart.some(c=>c.isFrozen);
     const totalWeight=cart.reduce((s,c)=>s+c.weightGram*c.qty,0);
-    
+    const fullAddr=addr+(subdistrict?', Kec. '+subdistrict:'');
+
+    // courier stays '' until FBI confirms ongkir in fbi-pos — that's what marks the order "needs ongkir"
     const{data:order,error:oe}=await sb.from('orders').insert({
       order_no:orderNo,
       customer_id:currentUser?.id||null,
-      customer_name:ordererName,
-      customer_phone:ordererPhone,
+      customer_name:name,
+      customer_phone:phone,
       is_guest:!currentUser,
-      shipping_name:shippingData.name,
-      shipping_phone:shippingData.phone,
-      shipping_address:shippingData.addr+(shippingData.subdistrict?', Kec. '+shippingData.subdistrict:''),
-      shipping_city:shippingData.city,
-      shipping_city_id:document.getElementById('sh-city-id').value,
-      shipping_province:shippingData.province,
-      shipping_postal_code:shippingData.postal,
-      courier:courierData.name,
-      courier_service:courierData.service||null,
-      shipping_cost:shippingData.ship,
-      subtotal:shippingData.sub,
-      discount_code:promoData?.code||null,
-      discount_amount:shippingData.prodDisc||0,
-      shipping_discount:shippingData.shipDisc||0,
-      total:shippingData.total,
+      shipping_name:name,
+      shipping_phone:phone,
+      shipping_address:fullAddr,
+      shipping_city:city,
+      shipping_province:currentUser?.province||'',
+      shipping_postal_code:postal,
+      courier:'',
+      shipping_cost:0,
+      subtotal:t.sub,
+      discount_code:promoData?(promoData.code||promoData.name||null):null,
+      discount_amount:t.prodDisc,
+      shipping_discount:0,
+      total:t.total,
       payment_method:'transfer',
       payment_status:'pending',
-      payment_proof_url:proofUrl,
-      payment_verified:aiVerified,
+      payment_verified:false,
       order_status:'pending',
-      notes:shippingData.notes||null,
+      notes:notes||null,
       is_frozen:hasFrozen,
-      total_weight:totalWeight,
-      ...(shippingData.isPending?{shipping_cost_confirmed:false}:{})
+      total_weight:totalWeight
     }).select().single();
-    
     if(oe)throw oe;
-    
-    // Insert order items
+
     const{error:oie}=await sb.from('order_items').insert(cart.map(c=>({
       order_id:order.id,
       product_id:c.productId,
@@ -1110,8 +849,7 @@ async function submitOrder(){
       subtotal:c.price*c.qty
     })));
     if(oie)throw oie;
-    
-    // Update stock
+
     for(const c of cart){
       const p=prods.find(x=>x.id===c.productId);
       if(p?.batchId){
@@ -1121,46 +859,41 @@ async function submitOrder(){
 
     // Sync into fbi-pos customers table so admin sees this order's customer + history
     try{
-      const{data:existingCust}=await sb.from('customers').select('id').eq('phone',ordererPhone).limit(1);
+      const{data:existingCust}=await sb.from('customers').select('id').eq('phone',phone).limit(1);
       if(existingCust&&existingCust.length){
-        await sb.from('customers').update({name:ordererName,address:shippingData.addr}).eq('id',existingCust[0].id);
+        await sb.from('customers').update({name,address:addr}).eq('id',existingCust[0].id);
       }else{
-        await sb.from('customers').insert({id:uid(),name:ordererName,phone:ordererPhone,address:shippingData.addr});
+        await sb.from('customers').insert({id:uid(),name,phone,address:addr});
       }
     }catch(e){console.error('customer sync failed',e);}
 
     // Save address back to the logged-in account so it pre-fills next order
     if(currentUser){
       try{
-        const addrFields={address:shippingData.addr,city:shippingData.city,province:shippingData.province,postal_code:shippingData.postal,city_id:document.getElementById('sh-city-id').value||null,subdistrict:shippingData.subdistrict||null};
+        const addrFields={address:addr,city,postal_code:postal,subdistrict:subdistrict||null};
         await sb.from('customer_accounts').update(addrFields).eq('id',currentUser.id);
         currentUser={...currentUser,...addrFields};
         localStorage.setItem('fbi_user',JSON.stringify(currentUser));
       }catch(e){console.error('address save failed',e);}
     }
 
-    // Send WA notification to customer
-    const msg=`Halo *${ordererName}*! 🐾\n\nPesananmu di *First Bite Instinct* sudah kami terima!\n\n📦 *${orderNo}*\n${cart.map(c=>`• ${c.productName}${c.variant?' ('+c.variant+')':''} ×${c.qty}`).join('\n')}\n\n💰 *Total: ${fR(shippingData.total)}${shippingData.isPending?' (belum termasuk ongkir)':''}*\n🚚 Kurir: ${courierData.name} ${courierData.service||''}\n\n${shippingData.isPending?`⏳ Ongkir ${courierData.name} untuk pesananmu perlu dihitung manual oleh tim kami. Kami akan infokan biaya kirimnya secepatnya via WhatsApp ini ya.\n\n`:''}${aiVerified?'✅ Bukti transfer terverifikasi otomatis.':'⏳ Tim kami sedang memverifikasi pembayaranmu.'}\n\nKami akan kirim notifikasi saat pesanan dipacking ya! 🎉\n\n_First Bite Instinct — Natural & Nutrition Balance_`;
-    
-    await sb.functions.invoke('proxy',{body:{service:'fonnte-send',target:ordererPhone.replace(/^0/,'62'),message:msg}}).catch(()=>{});
+    const itemLines=cart.map(c=>`• ${c.productName}${c.variant?' ('+c.variant+')':''} ×${c.qty}`).join('\n');
+    const custMsg=`Halo *${name}*! 🐾\n\nPesananmu di *First Bite Instinct* sudah kami terima.\n\n📦 *${orderNo}*\n${itemLines}\n\nSubtotal produk: *${fR(t.sub)}*${t.prodDisc?`\nDiskon: -${fR(t.prodDisc)}`:''}\n\nSelanjutnya tim kami akan menghitung ongkos kirim ke alamatmu, lalu mengirimkan total pembayaran dan instruksi transfer lewat WhatsApp ini. Mohon ditunggu ya 🙏\n\n_First Bite Instinct — Natural & Nutrition Balance_`;
+    const adminMsg=`🔔 *Order baru ${orderNo}*\n\nAtas nama: *${name}* (${phone})\n${itemLines}\n\nSubtotal produk: ${fR(t.sub)}${t.prodDisc?`\nDiskon: -${fR(t.prodDisc)}`:''}\n📍 ${fullAddr}, ${city}${postal?' '+postal:''}${hasFrozen?'\n❄️ Ada item frozen':''}${notes?'\n📝 '+notes:''}\n\nSilakan input ongkir di fbi-pos › Orders.`;
+    sendWA(waNum(phone),custMsg);
+    sendWA(ADMIN_WA,adminMsg);
 
-    if(aiVerified){
-      const verifiedMsg=`✅ Pembayaranmu untuk pesanan *${orderNo}* sudah kami terima dan sesuai!\n\nPesananmu akan segera diproses. Kami akan kirim notifikasi lagi saat pesanan dipacking ya! 📦\n\n_First Bite Instinct — Natural & Nutrition Balance_`;
-      await sb.functions.invoke('proxy',{body:{service:'fonnte-send',target:ordererPhone.replace(/^0/,'62'),message:verifiedMsg}}).catch(()=>{});
-    }
-
-    // Show success
     document.getElementById('suc-no').textContent=orderNo;
-    document.getElementById('suc-msg').textContent=`Terima kasih ${ordererName}! Pesananmu sedang kami proses. ${aiVerified?'Pembayaran sudah terverifikasi.':'Tim kami akan verifikasi pembayaranmu.'} Kamu akan dapat notifikasi WhatsApp saat pesanan dipacking.`;
+    document.getElementById('suc-msg').textContent=`Terima kasih ${name}! Tim FBI akan menghubungimu lewat WhatsApp untuk konfirmasi ongkir, total pembayaran, dan cara transfer.`;
 
     cart=[];
     saveCart();
-    goStep(5);
+    goStep(4);
   }catch(e){
     console.error(e);
     alert('Terjadi kesalahan: '+e.message);
   }finally{
-    btn.disabled=false;btn.textContent='✓ Konfirmasi Pesanan';
+    btn.disabled=false;btn.textContent='Kirim Pesanan →';
   }
 }
 
@@ -1168,64 +901,106 @@ function copyRek(){
   navigator.clipboard?.writeText(BCA_NO).then(()=>alert('Nomor rekening tersalin!')).catch(()=>alert(BCA_NO));
 }
 
-// PAY REMAINING SHIPPING (deep link ?pay=<order_no>)
-let payShipOrder=null,payShipFile=null,payShipBase64=null;
+// PAYMENT PAGE (deep link ?pay=<order_no>)
+let payOrder=null,payFile=null,payB64=null;
 async function loadPayOrder(orderNo){
-  const{data:order}=await sb.from('orders').select('*').eq('order_no',orderNo).single();
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('sc-pay-ship').classList.add('active');
   document.getElementById('steps').style.display='none';
-  if(!order){document.querySelector('#sc-pay-ship .card').innerHTML='<div style="text-align:center;padding:1rem;color:var(--t3)">Order tidak ditemukan.</div>';return;}
-  payShipOrder=order;
+  const{data:order}=await sb.from('orders').select('*').eq('order_no',orderNo).maybeSingle();
+  const stateEl=document.getElementById('pay-state');
+  document.getElementById('pay-order-no').textContent=orderNo;
+  if(!order){
+    stateEl.innerHTML='<div style="text-align:center;padding:1rem;color:var(--t3)">Order tidak ditemukan.</div>';
+    document.getElementById('pay-form').style.display='none';
+    return;
+  }
+  payOrder=order;
   const{data:items}=await sb.from('order_items').select('*').eq('order_id',order.id);
-  document.getElementById('pay-ship-order-no').textContent=order.order_no;
-  document.getElementById('pay-ship-items').innerHTML=(items||[]).map(it=>`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13px"><span style="color:var(--t3)">${it.product_name}${it.variant?' ('+it.variant+')':''} ×${it.qty}</span></div>`).join('');
-  document.getElementById('pay-ship-amount').textContent=fR(order.shipping_cost||0);
-  document.getElementById('pay-ship-bca-no').textContent=BCA_NO;
-  document.getElementById('pay-ship-bca-name').textContent=BCA_NAME;
-  if(!order.shipping_cost_confirmed){
-    document.getElementById('pay-ship-amount').textContent='Menunggu konfirmasi admin';
-    document.getElementById('pay-ship-upload-card').style.display='none';
-    document.getElementById('pay-ship-submit-btn').style.display='none';
-  } else if(order.shipping_proof_url){
-    document.getElementById('pay-ship-upload-card').style.display='none';
-    document.getElementById('pay-ship-submit-btn').style.display='none';
-    document.getElementById('pay-ship-done').style.display='';
+  document.getElementById('pay-items').innerHTML=(items||[]).map(it=>`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13px"><span style="color:var(--t3)">${it.product_name}${it.variant?' ('+it.variant+')':''} ×${it.qty}</span><span>${fR(it.price*it.qty)}</span></div>`).join('');
+  document.getElementById('pay-bca-no').textContent=BCA_NO;
+  document.getElementById('pay-bca-name').textContent=BCA_NAME;
+
+  const confirmed=!!order.courier;
+  const ship=Math.max(0,(order.shipping_cost||0)-(order.shipping_discount||0));
+  document.getElementById('pay-breakdown').innerHTML=`
+    <div class="sum-row"><span class="lbl">Subtotal produk</span><span class="val">${fR(order.subtotal)}</span></div>
+    ${order.discount_amount?`<div class="sum-row"><span class="lbl">Diskon</span><span class="val ok">-${fR(order.discount_amount)}</span></div>`:''}
+    <div class="sum-row"><span class="lbl">Ongkir${confirmed?' ('+order.courier+(order.courier_service?' '+order.courier_service:'')+')':''}</span><span class="val">${confirmed?fR(ship):'Menunggu konfirmasi'}</span></div>
+    <div class="sum-row total"><span>Total transfer</span><span class="val gold">${confirmed?fR(order.total):'-'}</span></div>`;
+
+  if(!confirmed){
+    stateEl.innerHTML='<div class="alert alert-info" style="margin-bottom:10px">Ongkir pesananmu sedang dihitung tim FBI. Kamu akan dapat WhatsApp berisi total dan cara bayar.</div>';
+    document.getElementById('pay-form').style.display='none';
+  }else if(order.payment_verified){
+    stateEl.innerHTML='<div class="alert alert-info" style="margin-bottom:10px">✓ Pembayaran sudah kami terima. Terima kasih! Pesananmu sedang diproses.</div>';
+    document.getElementById('pay-form').style.display='none';
+  }else if(order.payment_proof_url){
+    stateEl.innerHTML='<div class="alert alert-info" style="margin-bottom:10px">Bukti transfer sudah masuk dan sedang dicek tim kami. Kalau salah upload, kamu bisa kirim ulang di bawah.</div>';
   }
 }
 
-function onShipProofUpload(input){
+function onPayProofUpload(input){
   const file=input.files[0];
   if(!file)return;
   if(file.size>5*1024*1024){alert('File terlalu besar, max 5MB');return;}
-  payShipFile=file;
+  payFile=file;
   const reader=new FileReader();
   reader.onload=e=>{
-    payShipBase64=e.target.result;
-    const prev=document.getElementById('pay-ship-preview');
-    prev.src=payShipBase64;prev.style.display='block';
-    document.getElementById('pay-ship-upload-area').classList.add('has-file');
+    payB64=e.target.result.split(',')[1];
+    const prev=document.getElementById('pay-preview');
+    prev.src=e.target.result;prev.style.display='block';
+    document.getElementById('pay-upload-area').classList.add('has-file');
+    document.getElementById('pay-upload-txt').textContent='Foto berhasil dipilih ✓';
   };
   reader.readAsDataURL(file);
 }
 
-async function submitShipProof(){
-  if(!payShipOrder||!payShipFile){alert('Upload bukti transfer dulu');return;}
-  const btn=document.getElementById('pay-ship-submit-btn');
-  btn.disabled=true;btn.textContent='Mengirim...';
+async function submitPayProof(){
+  if(!payOrder||!payFile){alert('Upload bukti transfer dulu');return;}
+  const btn=document.getElementById('pay-submit-btn');
+  const res=document.getElementById('pay-ai-result');
+  btn.disabled=true;btn.textContent='Memeriksa...';
+  res.className='ai-result ai-loading';res.style.display='';
+  res.textContent='Sedang membaca bukti transfer...';
   try{
-    const fname=`shipping/${payShipOrder.id}_${Date.now()}_${payShipFile.name}`;
-    const{error:upe}=await sb.storage.from('order-proofs').upload(fname,payShipFile,{contentType:payShipFile.type});
+    const fname=`bt/${uid()}_${payFile.name}`;
+    const{error:upe}=await sb.storage.from('order-proofs').upload(fname,payFile,{contentType:payFile.type});
     if(upe)throw upe;
     const{data:ud}=sb.storage.from('order-proofs').getPublicUrl(fname);
-    const{error}=await sb.from('orders').update({shipping_proof_url:ud?.publicUrl||''}).eq('id',payShipOrder.id);
+
+    let ok=false,note='';
+    try{
+      const{data,error}=await sb.functions.invoke('proxy',{body:{service:'verify-transfer',image_base64:payB64,media_type:payFile.type||'image/jpeg',total:payOrder.total}});
+      if(error)throw error;
+      const txt=(data?.text||'').toLowerCase();
+      ok=txt.includes('valid: ya')&&txt.includes('sesuai: ya');
+      note=(data?.text||'').split('\n').find(l=>l.startsWith('CATATAN'))||'';
+    }catch(e){console.error('verify failed',e);}
+
+    const upd={payment_proof_url:ud?.publicUrl||'',payment_verified:ok};
+    if(ok)upd.payment_verified_at=new Date().toISOString();
+    const{error}=await sb.from('orders').update(upd).eq('id',payOrder.id);
     if(error)throw error;
-    document.getElementById('pay-ship-upload-card').style.display='none';
-    btn.style.display='none';
-    document.getElementById('pay-ship-done').style.display='';
+
+    const name=payOrder.shipping_name||payOrder.customer_name;
+    if(ok){
+      sendWA(waNum(payOrder.shipping_phone||payOrder.customer_phone),`Halo *${name}*! 🐾\n\nTerima kasih sudah memesan di First Bite Instinct. Pembayaran pesanan *${payOrder.order_no}* sudah kami terima dan sesuai ✅\n\nPesananmu sedang kami siapkan dan akan segera dikirim. Kami kabari lagi ya kalau sudah dipacking 📦\n\n_First Bite Instinct — Natural & Nutrition Balance_`);
+      sendWA(ADMIN_WA,`💰 Pembayaran *${payOrder.order_no}* (${name}) terverifikasi otomatis: ${fR(payOrder.total)}.\nSiap dipacking di fbi-pos › Orders.`);
+      res.className='ai-result ai-ok';
+      res.textContent='✓ Bukti transfer valid dan nominal sesuai. Terima kasih! Pesananmu akan segera dikirim — cek WhatsApp ya.';
+      document.getElementById('pay-upload-card').style.display='';
+      btn.style.display='none';
+    }else{
+      sendWA(ADMIN_WA,`⚠️ Bukti transfer *${payOrder.order_no}* (${name}) masuk tapi belum bisa diverifikasi otomatis (total ${fR(payOrder.total)}).\nMohon cek manual di fbi-pos › Orders.`);
+      res.className='ai-result ai-err';
+      res.textContent='Bukti transfer sudah kami terima, tapi belum bisa dicocokkan otomatis. Tim kami akan cek manual dan kabari lewat WhatsApp.'+(note?' ('+note+')':'');
+      btn.disabled=false;btn.textContent='Kirim Ulang Bukti Transfer';
+    }
   }catch(e){
-    alert('Gagal mengirim: '+e.message);
-    btn.disabled=false;btn.textContent='✓ Kirim Bukti Transfer';
+    console.error(e);
+    res.className='ai-result ai-err';res.textContent='Gagal mengirim: '+e.message;
+    btn.disabled=false;btn.textContent='Kirim Bukti Transfer';
   }
 }
 
@@ -1325,20 +1100,20 @@ function updateLoginBtn(){
 // NAVIGATION
 function goStep(n){
   step=n;
-  const screens=['','sc-catalog','sc-cart','sc-shipping','sc-payment','sc-success'];
+  const screens=['','sc-catalog','sc-cart','sc-shipping','sc-success'];
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(screens[n]).classList.add('active');
-  
+
   // Update step indicators
-  for(let i=1;i<=4;i++){
+  for(let i=1;i<=3;i++){
     const el=document.getElementById(`step${i}`);
     el.classList.remove('active','done');
     if(i<n)el.classList.add('done');
     else if(i===n)el.classList.add('active');
   }
-  
-  document.getElementById('steps').style.display=n===5?'none':'flex';
-  
+
+  document.getElementById('steps').style.display=n===4?'none':'flex';
+
   if(n===2)renderCart();
   window.scrollTo(0,0);
 }
